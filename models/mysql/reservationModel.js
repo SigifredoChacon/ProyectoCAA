@@ -697,12 +697,12 @@ export class reservationModel {
 </div>
 `;
 
-        //sendEmail(
-            //CorreoEmail,
-            //emailSubject,
-            //emailText,
-            //emailHtml
-        //);
+        sendEmail(
+            CorreoEmail,
+            emailSubject,
+            emailText,
+            emailHtml
+        );
       }
 
 
