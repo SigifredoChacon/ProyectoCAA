@@ -10,8 +10,18 @@ const connection = await mysql.createConnection(DBConfig)
 export class reservationController {
 
   static async getAll(req, res) {
-    const reservations = await reservationModel.getAll()
-    res.json(reservations)
+    const { page = 1, itemsPerPage = 10 } = req.query;
+    try {
+
+      const { reservations, totalPages } = await reservationModel.getAll({ page: Number(page), itemsPerPage: Number(itemsPerPage) });
+      if (reservations.length > 0) {
+        return res.json({ reservations, totalPages });
+      }
+      res.status(404).json({ message: 'No hay reservaciones' });
+    } catch (error) {
+      console.error('Error obteniendo las reservaciones:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
   }
 
   static async getAllPendingReservations(req, res) {
@@ -74,11 +84,35 @@ export class reservationController {
   }
 
   static async getByUserId(req, res) {
-    const {userId} = req.params
-    const reservations = await reservationModel.getByUserId({userId})
-    if(reservations.length > 0) return res.json(reservations)
-    res.status(404).json({message: 'No hay reservaciones asignadas a este usuario'})
+    const { userId } = req.params;
+    const { page = 1, itemsPerPage = 10 } = req.query; // Extrae page y itemsPerPage desde query params
+
+    if (!userId) {
+      return res.status(400).json({ message: 'Falta el ID del usuario' });
+    }
+
+    try {
+      // Pasa page e itemsPerPage al modelo
+      const { reservations, totalPages } = await reservationModel.getByUserId({ userId, page: Number(page), itemsPerPage: Number(itemsPerPage) });
+      if (reservations.length > 0) {
+        return res.json({ reservations, totalPages });
+      }
+      res.status(404).json({ message: 'No hay reservaciones asignadas a este usuario' });
+    } catch (error) {
+      console.error('Error obteniendo las reservaciones:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
   }
+  static async getByUserIdComplete(req, res) {
+    const {id} = req.params;
+    console.log(id)
+    const reservations = await reservationModel.getByUserIdCompleted({id})
+    if(reservations.length > 0) return res.json(reservations)
+    res.status(404).json({message: 'No hay reservaciones con encuesta faltante'})
+  }
+
+
+
 
   static async create(req, res) {
     const result = validateReservation(req.body)

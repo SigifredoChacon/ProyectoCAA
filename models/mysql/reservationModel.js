@@ -8,69 +8,94 @@ const connection = await mysql.createConnection(DBConfig)
 
 export class reservationModel {
 
-  static async getAll () {
+  static async getAll ({page = 1, itemsPerPage=10}) {
+    const offset = (page - 1) * itemsPerPage;
+
+
+    // Contar el número total de reservaciones
+    const [totalCountResult] = await connection.query(
+        `SELECT COUNT(*) as total 
+         FROM reservacion 
+         WHERE Estado = 1;`,
+
+    );
+
+    const totalReservations = totalCountResult[0].total;
+    const totalPages = Math.ceil(totalReservations / itemsPerPage);
+
+    // Obtener las reservaciones paginadas
     const [reservations] = await connection.query(
-      ` SELECT 
-    r.idReservacion,
-    r.Fecha,
-    r.HoraInicio,
-    r.HoraFin,
-    r.idSala,
-    r.idCubiculo,
-    r.idUsuario,
-    r.Observaciones,
-    rr.idRecurso,
-    rec.nombre AS NombreRecurso
-    FROM 
-        reservacion r
-    LEFT JOIN 
-        reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-    LEFT JOIN 
-        recursos rec ON rr.idRecurso = rec.idRecursos
-    WHERE r.Estado = 1;`
-    )
+        `SELECT 
+          r.idReservacion,
+          r.Fecha,
+          r.HoraInicio,
+          r.HoraFin,
+          r.idSala,
+          r.idCubiculo,
+          r.idUsuario,
+          r.EncuestaCompletada,
+          rr.idRecurso,
+          rec.nombre AS NombreRecurso,
+          r.Observaciones,
+          r.Refrigerio
+        FROM 
+          reservacion r
+        LEFT JOIN 
+          reservacion_recursos rr ON r.idReservacion = rr.idReservacion
+        LEFT JOIN 
+          recursos rec ON rr.idRecurso = rec.idRecursos
+        WHERE 
+          r.Estado = 1 
+        ORDER BY r.idReservacion DESC
+        LIMIT ? OFFSET ?;`,
+        [itemsPerPage, offset]
+    );
 
-    const reservationMap = {};
+    if (reservations.length === 0) {
+      return {
+        reservations: [],
+        totalPages: 0
+      };
+    }
 
-    reservations.forEach((row) => {
-      const {
-        idReservacion,
-        Fecha,
-        HoraInicio,
-        HoraFin,
-        idSala,
-        idCubiculo,
-        idUsuario,
-        Observaciones,
-        idRecurso,
-        NombreRecurso,
-      } = row;
+    const reservationIds = reservations.map(r => r.idReservacion);
 
+    // Obtener recursos
+    const [resources] = await connection.query(
+        `SELECT 
+          rr.idReservacion,
+          rr.idRecurso,
+          rec.nombre AS NombreRecurso
+        FROM 
+          reservacion_recursos rr
+        LEFT JOIN 
+          recursos rec ON rr.idRecurso = rec.idRecursos
+        WHERE 
+          rr.idReservacion IN (?);`,
+        [reservationIds]
+    );
 
-      if (!reservationMap[idReservacion]) {
-        reservationMap[idReservacion] = {
-          idReservacion,
-          Fecha,
-          HoraInicio,
-          HoraFin,
-          idSala,
-          idCubiculo,
-          idUsuario,
-          Observaciones,
-          recursos: [],
-        };
-      }
+    const reservationMap = reservations.reduce((acc, reservation) => {
+      acc[reservation.idReservacion] = {
+        ...reservation,
+        recursos: []
+      };
+      return acc;
+    }, {});
 
-
-      if (idRecurso) {
-        reservationMap[idReservacion].recursos.push({
-          idRecurso,
-          NombreRecurso,
+    resources.forEach(resource => {
+      if (reservationMap[resource.idReservacion]) {
+        reservationMap[resource.idReservacion].recursos.push({
+          idRecurso: resource.idRecurso,
+          NombreRecurso: resource.NombreRecurso
         });
       }
     });
 
-    return Object.values(reservationMap);
+    return {
+      reservations: Object.values(reservationMap),
+      totalPages
+    };
   }
 
   static async getAllPendingReservations () {
@@ -439,80 +464,116 @@ export class reservationModel {
 
     return reservations
   }
-
-  static async getByUserId({ userId }) {
-
+  static async getByUserIdCompleted({ id }) {
     const [reservations] = await connection.query(
-        ` SELECT 
-        r.idReservacion,
-        r.Fecha,
-        r.HoraInicio,
-        r.HoraFin,
-        r.idSala,
-        r.idCubiculo,
-        r.idUsuario,
-        r.EncuestaCompletada,
-        rr.idRecurso,
-        rec.nombre AS NombreRecurso,
-        r.Observaciones,
-        r.Refrigerio
+      ` SELECT 
+        *
     FROM 
-        reservacion r
-    LEFT JOIN 
-        reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-    LEFT JOIN 
-        recursos rec ON rr.idRecurso = rec.idRecursos
+        reservacion 
     WHERE 
-        r.Estado = 1 AND r.idUsuario = ?;`,
+        idUsuario = ? AND EncuestaCompletada = 0;`,
+
+      [id]
+    )
+    console.log(reservations)
+    return reservations
+  }
+
+  static async getByUserId({ userId, page = 1, itemsPerPage=10 }) {
+    const offset = (page - 1) * itemsPerPage;
+
+
+    // Contar el número total de reservaciones
+    const [totalCountResult] = await connection.query(
+        `SELECT COUNT(*) as total 
+         FROM reservacion 
+         WHERE Estado = 1 AND idUsuario = ?;`,
         [userId]
     );
 
-    const reservationMap = {};
+    const totalReservations = totalCountResult[0].total;
+    const totalPages = Math.ceil(totalReservations / itemsPerPage);
 
-    reservations.forEach((row) => {
-      const {
-        idReservacion,
-        Fecha,
-        HoraInicio,
-        HoraFin,
-        idSala,
-        idCubiculo,
-        idUsuario,
-        idRecurso,
-        NombreRecurso,
-        Observaciones,
-        Refrigerio,
-        EncuestaCompletada,
-      } = row;
+    // Obtener las reservaciones paginadas
+    const [reservations] = await connection.query(
+        `SELECT 
+          r.idReservacion,
+          r.Fecha,
+          r.HoraInicio,
+          r.HoraFin,
+          r.idSala,
+          r.idCubiculo,
+          r.idUsuario,
+          r.EncuestaCompletada,
+          rr.idRecurso,
+          rec.nombre AS NombreRecurso,
+          r.Observaciones,
+          r.Refrigerio
+        FROM 
+          reservacion r
+        LEFT JOIN 
+          reservacion_recursos rr ON r.idReservacion = rr.idReservacion
+        LEFT JOIN 
+          recursos rec ON rr.idRecurso = rec.idRecursos
+        WHERE 
+          r.Estado = 1 AND r.idUsuario = ?
+        ORDER BY r.idReservacion DESC
+        LIMIT ? OFFSET ?;`,
+        [userId, itemsPerPage, offset]
+    );
 
+    if (reservations.length === 0) {
+      return {
+        reservations: [],
+        totalPages: 0
+      };
+    }
 
-      if (!reservationMap[idReservacion]) {
-        reservationMap[idReservacion] = {
-          idReservacion,
-          Fecha,
-          HoraInicio,
-          HoraFin,
-          idSala,
-          idCubiculo,
-          idUsuario,
-          EncuestaCompletada,
-          Observaciones: idSala ? Observaciones : null,
-          Refrigerio: idSala ? Refrigerio : null,
-          recursos: [],
-        };
-      }
+    const reservationIds = reservations.map(r => r.idReservacion);
 
+    // Obtener recursos
+    const [resources] = await connection.query(
+        `SELECT 
+          rr.idReservacion,
+          rr.idRecurso,
+          rec.nombre AS NombreRecurso
+        FROM 
+          reservacion_recursos rr
+        LEFT JOIN 
+          recursos rec ON rr.idRecurso = rec.idRecursos
+        WHERE 
+          rr.idReservacion IN (?);`,
+        [reservationIds]
+    );
 
-      if (idSala && idRecurso) {
-        reservationMap[idReservacion].recursos.push({
-          idRecurso,
-          NombreRecurso,
+    const reservationMap = reservations.reduce((acc, reservation) => {
+      acc[reservation.idReservacion] = {
+        ...reservation,
+        recursos: []
+      };
+      return acc;
+    }, {});
+
+    resources.forEach(resource => {
+      if (reservationMap[resource.idReservacion]) {
+        reservationMap[resource.idReservacion].recursos.push({
+          idRecurso: resource.idRecurso,
+          NombreRecurso: resource.NombreRecurso
         });
       }
     });
 
-    return Object.values(reservationMap);
+    return {
+      reservations: Object.values(reservationMap),
+      totalPages
+    };
   }
+
+
+
+
+
+
 
 
 
@@ -636,12 +697,12 @@ export class reservationModel {
 </div>
 `;
 
-        sendEmail(
-            CorreoEmail,
-            emailSubject,
-            emailText,
-            emailHtml
-        );
+        //sendEmail(
+            //CorreoEmail,
+            //emailSubject,
+            //emailText,
+            //emailHtml
+        //);
       }
 
 

@@ -32,7 +32,7 @@ Content-Type: application/json
 DELETE http://localhost:3000/reservations/deletebyDate/2024-10-05
 
 ###
-DELETE http://localhost:3000/reservations/33
+DELETE http://localhost:3000/reservations/300
 
 ###
 PATCH http://localhost:3000/reservations/26

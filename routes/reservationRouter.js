@@ -18,6 +18,7 @@ reservationRouter.get('/getbyRoomIdDate/:roomId', reservationController.getReser
 reservationRouter.get('/year/:year', reservationController.getByYear);
 reservationRouter.get('/month/:year/:month', reservationController.getByMonth);
 reservationRouter.get('/range', reservationController.getByDateRange);
+reservationRouter.get('/reservationsCompleted/:id', reservationController.getByUserIdComplete)
 
 reservationRouter.get('/:id',reservationController.getById)
 reservationRouter.delete('/deleteByDate/:date',reservationController.deleteByDate)
