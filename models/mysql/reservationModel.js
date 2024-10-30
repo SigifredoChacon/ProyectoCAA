@@ -475,7 +475,7 @@ export class reservationModel {
 
       [id]
     )
-    console.log(reservations)
+
     return reservations
   }
 

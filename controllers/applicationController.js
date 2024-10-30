@@ -87,40 +87,40 @@ export class applicationController {
     }
 
     static create = [
-        upload.single('archivoSolicitud'),  // Middleware de multer para manejar el archivo
+        upload.single('archivoSolicitud'),
         async (req, res) => {
-            // Convertir `idUsuario` e `idActivo` a números antes de la validación
+
             const idUsuario = parseInt(req.body.idUsuario, 10);
             const idActivo = parseInt(req.body.idActivo, 10);
 
-            // Añadir `archivoSolicitud` temporalmente para pasar la validación del esquema
+
             const inputForValidation = {
                 ...req.body,
                 idUsuario,
                 idActivo,
-                archivoSolicitud: req.file ? req.file.path : undefined  // Añadir la ruta del archivo o `undefined`
+                archivoSolicitud: req.file ? req.file.path : undefined
             };
 
-            // Validar datos del cuerpo de la solicitud
+
             const result = validateApplication(inputForValidation);
             if (result.success === false) {
                 return res.status(400).json({ error: JSON.parse(result.error.message) });
             }
 
-            // Verificar que el archivo haya sido subido
+
             if (!req.file) {
                 return res.status(400).json({ error: 'El archivo PDF es obligatorio' });
             }
 
-            // Construir el objeto `input` para el modelo después de la validación
+
             const input = {
                 ...req.body,
                 idUsuario,
                 idActivo,
-                archivoSolicitud: req.file.path  // Ruta del archivo guardado
+                archivoSolicitud: req.file.path
             };
 
-            // Crear la nueva solicitud en el modelo
+
             const newApplication = await applicationModel.create({ input });
             if (newApplication === false) {
                 return res.status(409).json({ message: 'Dato repetido' });
