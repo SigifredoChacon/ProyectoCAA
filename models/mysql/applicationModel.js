@@ -16,7 +16,7 @@ export class applicationModel {
 
     static async getAll () {
         const [applications] = await connection.query(
-            'SELECT * FROM solicitud',
+            'SELECT * FROM solicitud ORDER BY idSolicitud DESC',
         )
         return applications
     }
@@ -54,7 +54,8 @@ export class applicationModel {
         LEFT JOIN 
             usuario u ON s.idUsuario = u.CedulaCarnet
         WHERE 
-            s.idUsuario = ?;`,
+            s.idUsuario = ?
+        ORDER BY s.idSolicitud DESC;`,
             [userId]
         );
 
@@ -95,8 +96,7 @@ export class applicationModel {
                 };
             }
         });
-
-        return Object.values(applicationMap);
+        return Object.values(applicationMap).sort((a, b) => b.idSolicitud - a.idSolicitud);
     }
 
 
