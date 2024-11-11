@@ -1,8 +1,8 @@
 export const DBConfig = {
-    host: 'localhost',
+    host: 'autorack.proxy.rlwy.net',
     user: 'root',
-    port: 3306,
-    password: 'root',
-    database: 'sistemacaa',
+    port: 11220,
+    password: 'UAMUPsUpEwMLJcfVIagrkgiIfyCFxlsI',
+    database: 'railway',
 };
 
