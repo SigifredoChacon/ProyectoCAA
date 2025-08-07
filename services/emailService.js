@@ -3,14 +3,14 @@ import nodemailer from 'nodemailer';
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'sjchaconballadares@gmail.com',
-        pass: 'jkxw bnze gmvj iyul'
+        user: 'centroacademicoalajuela@gmail.com',
+        pass: 'vgua crep ugru ovus'
     }
 });
 
 export const sendEmail = (to, subject, text, html) => {
     const mailOptions = {
-        from: 'sjchaconballadares@gmail.com',
+        from: 'centroacademicoalajuela@gmail.com',
         to: to,
         subject: subject,
         text: text,

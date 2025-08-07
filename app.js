@@ -19,9 +19,9 @@ import * as path from "node:path";
 
 const app = express();
 app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     next();
 });
 app.use(express.json());
@@ -35,8 +35,6 @@ app.use('/cubicles', cubicleRouter);
 app.use('/resources', resourceRouter);
 app.use('/roles', roleRouter);
 app.use('/categories', categoryRouter);
-app.use('/cubicles', cubicleRouter);
-app.use('/resources', resourceRouter);
 app.use('/states', stateRouter);
 app.use('/users', userRouter);
 app.use('/assets', assetRouter);
@@ -52,6 +50,6 @@ cron.schedule('30 14 * * *', () => {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const PORT = process.env.PORT ?? 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`http://localhost:${PORT}`);
 });

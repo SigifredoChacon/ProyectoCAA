@@ -1,8 +1,8 @@
 export const DBConfig = {
-    host: 'autorack.proxy.rlwy.net',
-    user: 'root',
-    port: 11220,
-    password: 'UAMUPsUpEwMLJcfVIagrkgiIfyCFxlsI',
-    database: 'railway',
+    host: 'localhost',
+    user: 'soporte',
+    port: 3306,
+    password: '$_Thor_ADM_3_$',
+    database: 'reserva-salas-caa',
 };
 
