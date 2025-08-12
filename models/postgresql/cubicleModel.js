@@ -1,55 +1,43 @@
-import mysql from 'mysql2/promise'
-import {DBConfig} from '../../DBConfig.js'
+//import mysql from 'mysql2/promise'
+import pkg from 'pg';
+const { Pool } = pkg;
+import { DBConfig } from '../../DBConfig.js'
+import {format} from "date-fns";
+import {es} from "date-fns/locale";
 import {sendEmail} from "../../services/emailService.js";
 
 
-const connection = await mysql.createConnection(DBConfig)
+const pool = new Pool(DBConfig);
 
-export class RoomModel {
+export class cubicleModel {
 
-    static async getAll () {
-        const [rooms] = await connection.query(
-            'SELECT * FROM sala',
-        )
-        return rooms
+    static async getAll() {
+        const { rows: cubicles } = await pool.query(
+            'SELECT * FROM cubiculo'
+        );
+        return cubicles;
     }
 
-    static async getById ({ id }) {
-        const [room] = await connection.query(
-            'SELECT * FROM sala WHERE idSala = ?',
+    static async getById({ id }) {
+        const { rows: cubicle } = await pool.query(
+            'SELECT * FROM cubiculo WHERE idCubiculo = $1',
             [id]
-        )
-        if(room.length === 0) {
-            return null
+        );
+
+        if (cubicle.length === 0) {
+            return null;
         }
 
-        return room[0]
-    }
-
-    static async getNameById ({ id }) {
-        const [room] = await connection.query(
-            'SELECT Nombre FROM sala WHERE idSala = ?',
-            [id]
-        )
-        if(room.length === 0) {
-            return null
-        }
-
-        return room[0]
+        return cubicle[0];
     }
 
     static async create({ input }) {
-        const {
-            imagen,
-            nombre,
-            descripcion,
-            restricciones,
-            estado
-        } = input;
+        const { nombre, ventana, estado } = input;
 
         try {
-            const [result] = await connection.query(
-                'SELECT nombre FROM sala WHERE Nombre = ?',
+            // Verificar si ya existe un cubículo con ese nombre
+            const { rows: result } = await pool.query(
+                'SELECT nombre FROM cubiculo WHERE Nombre = $1',
                 [nombre]
             );
 
@@ -57,115 +45,118 @@ export class RoomModel {
                 return false;
             }
 
-            await connection.query(
-                'INSERT INTO sala (Imagen, Nombre, Descripcion, Restricciones, Estado) VALUES (?, ?, ?, ?, ?)',
-                [imagen, nombre, descripcion, restricciones, estado]
+            // Insertar y obtener el id insertado usando RETURNING
+            const { rows: inserted } = await pool.query(
+                'INSERT INTO cubiculo (nombre, ventana, estado) VALUES ($1, $2, $3) RETURNING idCubiculo',
+                [nombre, ventana, estado]
             );
+
+            const insertedId = inserted[0].idCubiculo;
+
+            // Obtener el cubículo insertado
+            const { rows: cubicle } = await pool.query(
+                'SELECT * FROM cubiculo WHERE idCubiculo = $1',
+                [insertedId]
+            );
+
+            return cubicle[0];
+
         } catch (error) {
-            throw new Error(error);
+            throw new Error("Error al crear el cubiculo: " + error.message);
         }
-
-        const [room] = await connection.query(
-            `SELECT *
-             FROM sala WHERE idSala = LAST_INSERT_ID();`
-        );
-        return room[0];
     }
-
-    static async delete ({ id }) {
+    static async delete({ id }) {
         try {
-            const [result] = await connection.query(
-                'SELECT * FROM reservacion WHERE idSala = ?',
+            const { rows: result } = await pool.query(
+                'SELECT * FROM reservacion WHERE "idCubiculo" = $1',
                 [id]
             );
 
             if (result.length > 0) {
-                return false
+                return false;
             }
 
-            await connection.query(
-                'DELETE FROM sala WHERE idSala = ?',
+            await pool.query(
+                'DELETE FROM cubiculo WHERE "idCubiculo" = $1',
                 [id]
-            )
+            );
         }
         catch (error) {
-            throw new Error("Error al eliminar la sala")
+            throw new Error("Error al eliminar el cubiculo ");
         }
-        return true
+        return true;
     }
 
     static async update({ id, input }) {
         const {
-            imagen,
             nombre,
-            descripcion,
-            restricciones,
+            ventana,
             estado
-        } = input
+        } = input;
 
         try {
-
-            const [duplicate] = await connection.query(
-                'SELECT nombre FROM sala WHERE Nombre = ?',
+            const { rows: duplicate } = await pool.query(
+                'SELECT "Nombre" FROM cubiculo WHERE "Nombre" = $1',
                 [nombre]
-            )
-            if (duplicate.length > 0) {
-                return false
-            }
-
-            const [result] = await connection.query(
-                `UPDATE sala
-       SET Imagen = COALESCE(?, Imagen),
-           Nombre = COALESCE(?, Nombre),
-           Descripcion = COALESCE(?, Descripcion),
-           Restricciones = COALESCE(?, Restricciones),
-           Estado = COALESCE(?, Estado)
-       WHERE idSala = ?;`,
-                [imagen, nombre, descripcion, restricciones, estado, id]
             );
-            if (result.affectedRows === 0) {
-                throw new Error('No se encontro la sala con ese id');
+
+            if (duplicate.length > 0) {
+                return false;
             }
 
-            const [updatedRoom] = await connection.query(
+            const result = await pool.query(
+                `UPDATE cubiculo
+             SET "Nombre" = COALESCE($1, "Nombre"),
+                 "Ventana" = COALESCE($2, "Ventana"),
+                 "Estado" = COALESCE($3, "Estado")
+             WHERE "idCubiculo" = $4`,
+                [nombre, ventana, estado, id]
+            );
+
+            if (result.rowCount === 0) {
+                throw new Error('No se encontro el cubiculo con ese id');
+            }
+
+            const { rows: updatedCubicle } = await pool.query(
                 `SELECT *
-                    FROM sala WHERE idSala = ?;`,
+                 FROM cubiculo WHERE "idCubiculo" = $1`,
                 [id]
             );
 
-            return updatedRoom[0];
+            return updatedCubicle[0];
         } catch (error) {
-            throw new Error("Error al actualizar la sala");
+            throw new Error(error);
         }
     }
 
     static async lock() {
         try {
 
-            const [result] = await connection.query(
-                `UPDATE sala
-                 SET Estado = 0;`
+            await pool.query(
+                `UPDATE cubiculo
+             SET "Estado" = 0;`
             );
-            const [updatedRooms] = await connection.query(
+
+            const { rows: updatedCubicles } = await pool.query(
                 `SELECT *
-                    FROM sala;`,
+                 FROM cubiculo;`
             );
 
-            const [userDetails] = await connection.query(
-                `SELECT Usuario.Nombre, Usuario.CorreoEmail
-                 FROM Usuario
-                          INNER JOIN Rol ON Usuario.idRol = Rol.idRol
-                 WHERE Rol.Nombre IN ('Administrador', 'Profesor', 'Estudiante');`
+            const { rows: userDetails } = await pool.query(
+                `SELECT "Usuario"."Nombre", "Usuario"."CorreoEmail"
+                 FROM "Usuario"
+                          INNER JOIN "Rol" ON "Usuario"."idRol" = "Rol"."idRol"
+                 WHERE "Rol"."Nombre" IN ('Administrador', 'Profesor');`
             );
 
-            const emailSubject = 'Bloqueo de Salas';
+            const emailSubject = 'Bloqueo de cubículos';
 
 
             userDetails.forEach(({ Nombre, CorreoEmail }) => {
                 const emailText = `
             Hola ${Nombre},
             
-            Debido a temas administrativos, se ha bloqueado temporalmente la opción de reservar salas. Será notificado cuando esta opción vuelva a estar disponible.
+            Debido a temas administrativos, se ha bloqueado temporalmente la opción de reservar cubículos. Será notificado cuando esta opción vuelva a estar disponible.
             `;
 
                 const emailHtml = `
@@ -200,7 +191,7 @@ export class RoomModel {
       <td align="center" style="padding: 10px 0;">
         <!-- Mensaje de Bloqueo -->
         <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
-          Hola ${Nombre}, debido a temas administrativos, se ha bloqueado temporalmente la opción de reservar salas. Será notificado cuando esta opción vuelva a estar disponible.
+          Hola ${Nombre}, debido a temas administrativos, se ha bloqueado temporalmente la opción de reservar cubículos. Será notificado cuando esta opción vuelva a estar disponible.
         </p>
       </td>
     </tr>
@@ -217,39 +208,43 @@ export class RoomModel {
                 );
             });
 
-
-            return updatedRooms;
+            return updatedCubicles;
         } catch (error) {
             throw new Error("Error al actualizar la sala");
         }
     }
 
+
+
     static async unLock() {
         try {
 
-            const [result] = await connection.query(
-                `UPDATE sala
-                 SET Estado = 1;`
-            );
-            const [updatedRooms] = await connection.query(
-                `SELECT *
-                    FROM sala;`,
-            );
-            const [userDetails] = await connection.query(
-                `SELECT Usuario.Nombre, Usuario.CorreoEmail
-                 FROM Usuario
-                          INNER JOIN Rol ON Usuario.idRol = Rol.idRol
-                 WHERE Rol.Nombre IN ('Administrador', 'Profesor', 'Estudiante');`
+            await pool.query(
+                `UPDATE cubiculo
+             SET "Estado" = 1;`
             );
 
-            const emailSubject = 'Reactivación de reservas de Salas';
+            const { rows: updatedCubicles } = await pool.query(
+                `SELECT *
+                 FROM cubiculo;`
+            );
+
+            const { rows: userDetails } = await pool.query(
+                `SELECT "Usuario"."Nombre", "Usuario"."CorreoEmail"
+                 FROM "Usuario"
+                          INNER JOIN "Rol" ON "Usuario"."idRol" = "Rol"."idRol"
+                 WHERE "Rol"."Nombre" IN ('Administrador', 'Profesor');`
+            );
+
+
+            const emailSubject = 'Reactivación de reservas de cubículos';
 
             // Enviar el correo solo a los usuarios con los roles especificados
             userDetails.forEach(({ Nombre, CorreoEmail }) => {
                 const emailText = `
             Hola ${Nombre},
             
-            Nos complace informarle que la opción de reservar salas ha sido reactivada. Ya puede realizar sus reservas nuevamente.
+            Nos complace informarle que la opción de reservar cubículos ha sido reactivada. Ya puede realizar sus reservas nuevamente.
             `;
 
                 const emailHtml = `
@@ -284,7 +279,7 @@ export class RoomModel {
       <td align="center" style="padding: 10px 0;">
         <!-- Mensaje de Reactivación -->
         <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
-          Hola ${Nombre}, nos complace informarle que la opción de reservar salas ha sido reactivada. Ya puede realizar sus reservas nuevamente.
+          Hola ${Nombre}, nos complace informarle que la opción de reservar cubículos ha sido reactivada. Ya puede realizar sus reservas nuevamente.
         </p>
       </td>
     </tr>
@@ -292,7 +287,7 @@ export class RoomModel {
 </div>
 `;
 
-
+                // Enviar el correo a cada usuario
                 sendEmail(
                     CorreoEmail,
                     emailSubject,
@@ -301,12 +296,13 @@ export class RoomModel {
                 );
             });
 
-
-
-            return updatedRooms;
+            return updatedCubicles;
         } catch (error) {
             throw new Error("Error al actualizar la sala");
         }
     }
+
+
+
 
 }

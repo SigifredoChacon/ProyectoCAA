@@ -1,4 +1,4 @@
-import {resourceModel} from '../models/mysql/resourceModel.js';
+import {resourceModel} from '../models/postgresql/resourceModel.js';
 import {validateResource, validateResourceUpdate} from '../schemas/resourceSchema.js';
 
 export class resourceController {

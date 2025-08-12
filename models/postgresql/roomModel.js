@@ -1,41 +1,40 @@
-import mysql from 'mysql2/promise'
+import pkg from 'pg';
+const { Pool } = pkg;
 import {DBConfig} from '../../DBConfig.js'
 import {sendEmail} from "../../services/emailService.js";
 
 
-const connection = await mysql.createConnection(DBConfig)
+const pool = new Pool(DBConfig);
 
 export class RoomModel {
 
-    static async getAll () {
-        const [rooms] = await connection.query(
-            'SELECT * FROM sala',
-        )
-        return rooms
+    static async getAll() {
+        const { rows: rooms } = await pool.query(
+            'SELECT * FROM sala'
+        );
+        return rooms;
     }
 
-    static async getById ({ id }) {
-        const [room] = await connection.query(
-            'SELECT * FROM sala WHERE idSala = ?',
+    static async getById({ id }) {
+        const { rows: room } = await pool.query(
+            'SELECT * FROM sala WHERE idSala = $1',
             [id]
-        )
-        if(room.length === 0) {
-            return null
+        );
+        if (room.length === 0) {
+            return null;
         }
-
-        return room[0]
+        return room[0];
     }
 
-    static async getNameById ({ id }) {
-        const [room] = await connection.query(
-            'SELECT Nombre FROM sala WHERE idSala = ?',
+    static async getNameById({ id }) {
+        const { rows: room } = await pool.query(
+            'SELECT Nombre FROM sala WHERE idSala = $1',
             [id]
-        )
-        if(room.length === 0) {
-            return null
+        );
+        if (room.length === 0) {
+            return null;
         }
-
-        return room[0]
+        return room[0];
     }
 
     static async create({ input }) {
@@ -48,51 +47,47 @@ export class RoomModel {
         } = input;
 
         try {
-            const [result] = await connection.query(
-                'SELECT nombre FROM sala WHERE Nombre = ?',
+            const { rows: existing } = await pool.query(
+                'SELECT nombre FROM sala WHERE "Nombre" = $1',
                 [nombre]
+            );
+
+            if (existing.length > 0) {
+                return false;
+            }
+
+            const { rows: rooms } = await pool.query(
+                'INSERT INTO sala ("Imagen", "Nombre", "Descripcion", "Restricciones", "Estado") VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                [imagen, nombre, descripcion, restricciones, estado]
+            );
+
+            return rooms[0];
+        } catch (error) {
+            throw new Error(error);
+        }
+    }
+
+    static async delete({ id }) {
+        try {
+            const { rows: result } = await pool.query(
+                'SELECT * FROM reservacion WHERE "idSala" = $1',
+                [id]
             );
 
             if (result.length > 0) {
                 return false;
             }
 
-            await connection.query(
-                'INSERT INTO sala (Imagen, Nombre, Descripcion, Restricciones, Estado) VALUES (?, ?, ?, ?, ?)',
-                [imagen, nombre, descripcion, restricciones, estado]
+            await pool.query(
+                'DELETE FROM sala WHERE "idSala" = $1',
+                [id]
             );
         } catch (error) {
-            throw new Error(error);
+            throw new Error("Error al eliminar la sala");
         }
-
-        const [room] = await connection.query(
-            `SELECT *
-             FROM sala WHERE idSala = LAST_INSERT_ID();`
-        );
-        return room[0];
+        return true;
     }
 
-    static async delete ({ id }) {
-        try {
-            const [result] = await connection.query(
-                'SELECT * FROM reservacion WHERE idSala = ?',
-                [id]
-            );
-
-            if (result.length > 0) {
-                return false
-            }
-
-            await connection.query(
-                'DELETE FROM sala WHERE idSala = ?',
-                [id]
-            )
-        }
-        catch (error) {
-            throw new Error("Error al eliminar la sala")
-        }
-        return true
-    }
 
     static async update({ id, input }) {
         const {
@@ -101,35 +96,35 @@ export class RoomModel {
             descripcion,
             restricciones,
             estado
-        } = input
+        } = input;
 
         try {
-
-            const [duplicate] = await connection.query(
-                'SELECT nombre FROM sala WHERE Nombre = ?',
+            const { rows: duplicate } = await pool.query(
+                'SELECT nombre FROM sala WHERE "Nombre" = $1',
                 [nombre]
-            )
+            );
+
             if (duplicate.length > 0) {
-                return false
+                return false;
             }
 
-            const [result] = await connection.query(
+            const result = await pool.query(
                 `UPDATE sala
-       SET Imagen = COALESCE(?, Imagen),
-           Nombre = COALESCE(?, Nombre),
-           Descripcion = COALESCE(?, Descripcion),
-           Restricciones = COALESCE(?, Restricciones),
-           Estado = COALESCE(?, Estado)
-       WHERE idSala = ?;`,
+             SET "Imagen" = COALESCE($1, "Imagen"),
+                 "Nombre" = COALESCE($2, "Nombre"),
+                 "Descripcion" = COALESCE($3, "Descripcion"),
+                 "Restricciones" = COALESCE($4, "Restricciones"),
+                 "Estado" = COALESCE($5, "Estado")
+             WHERE "idSala" = $6`,
                 [imagen, nombre, descripcion, restricciones, estado, id]
             );
-            if (result.affectedRows === 0) {
+
+            if (result.rowCount === 0) {
                 throw new Error('No se encontro la sala con ese id');
             }
 
-            const [updatedRoom] = await connection.query(
-                `SELECT *
-                    FROM sala WHERE idSala = ?;`,
+            const { rows: updatedRoom } = await pool.query(
+                'SELECT * FROM sala WHERE "idSala" = $1',
                 [id]
             );
 
@@ -142,21 +137,26 @@ export class RoomModel {
     static async lock() {
         try {
 
-            const [result] = await connection.query(
+            // Actualizar estado de todas las salas a 0
+            await pool.query(
                 `UPDATE sala
-                 SET Estado = 0;`
-            );
-            const [updatedRooms] = await connection.query(
-                `SELECT *
-                    FROM sala;`,
+             SET "Estado" = 0;`
             );
 
-            const [userDetails] = await connection.query(
-                `SELECT Usuario.Nombre, Usuario.CorreoEmail
-                 FROM Usuario
-                          INNER JOIN Rol ON Usuario.idRol = Rol.idRol
-                 WHERE Rol.Nombre IN ('Administrador', 'Profesor', 'Estudiante');`
+            // Obtener todas las salas actualizadas
+            const { rows: updatedRooms } = await pool.query(
+                `SELECT *
+             FROM sala;`
             );
+
+            // Obtener usuarios con roles especificados
+            const { rows: userDetails } = await pool.query(
+                `SELECT "Usuario"."Nombre", "Usuario"."CorreoEmail"
+                 FROM "Usuario"
+                          INNER JOIN "Rol" ON "Usuario"."idRol" = "Rol"."idRol"
+                 WHERE "Rol"."Nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
+            );
+
 
             const emailSubject = 'Bloqueo de Salas';
 
@@ -227,19 +227,24 @@ export class RoomModel {
     static async unLock() {
         try {
 
-            const [result] = await connection.query(
+            // Actualizar estado de todas las salas a 1
+            await pool.query(
                 `UPDATE sala
-                 SET Estado = 1;`
+             SET "Estado" = 1;`
             );
-            const [updatedRooms] = await connection.query(
+
+            // Obtener todas las salas actualizadas
+            const { rows: updatedRooms } = await pool.query(
                 `SELECT *
-                    FROM sala;`,
+             FROM sala;`
             );
-            const [userDetails] = await connection.query(
-                `SELECT Usuario.Nombre, Usuario.CorreoEmail
-                 FROM Usuario
-                          INNER JOIN Rol ON Usuario.idRol = Rol.idRol
-                 WHERE Rol.Nombre IN ('Administrador', 'Profesor', 'Estudiante');`
+
+            // Obtener usuarios con roles especificados
+            const { rows: userDetails } = await pool.query(
+                `SELECT "Usuario"."Nombre", "Usuario"."CorreoEmail"
+                 FROM "Usuario"
+                          INNER JOIN "Rol" ON "Usuario"."idRol" = "Rol"."idRol"
+                 WHERE "Rol"."Nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
             );
 
             const emailSubject = 'Reactivación de reservas de Salas';

@@ -1,6 +1,6 @@
-import {categoryModel} from '../models/mysql/categoryModel.js';
+import {categoryModel} from '../models/postgresql/categoryModel.js';
 import {validateCategory, validateCategoryUpdate} from '../schemas/categorySchema.js';
-import {roleModel} from "../models/mysql/roleModel.js";
+import {roleModel} from "../models/postgresql/roleModel.js";
 export class categoryController {
 
     static async getAll(req, res) {

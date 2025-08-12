@@ -1,4 +1,4 @@
-import {RoomModel} from '../models/mysql/roomModel.js';
+import {RoomModel} from '../models/postgresql/roomModel.js';
 import {validateRoom, validateRoomUpdate} from '../schemas/roomSchema.js';
 export class RoomController {
 

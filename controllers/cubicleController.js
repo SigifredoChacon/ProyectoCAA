@@ -1,6 +1,6 @@
-import {cubicleModel} from '../models/mysql/cubicleModel.js';
+import {cubicleModel} from '../models/postgresql/cubicleModel.js';
 import {validateCubicle, validateCubicleUpdate} from '../schemas/cubicleSchema.js';
-import {RoomModel} from "../models/mysql/roomModel.js";
+import {RoomModel} from "../models/postgresql/roomModel.js";
 export class cubicleController {
 
     static async getAll(req, res) {

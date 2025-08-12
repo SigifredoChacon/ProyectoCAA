@@ -1,38 +1,40 @@
 import mysql from 'mysql2/promise'
 
+
+
 import { DBConfig } from '../../DBConfig.js'
 
 const connection = await mysql.createConnection(DBConfig)
 
-export class resourceModel {
+export class roleModel {
 
     static async getAll () {
-        const [resources] = await connection.query(
-            'SELECT * FROM recursos',
+        const [roles] = await connection.query(
+            'SELECT * FROM rol',
         )
-        return resources
+        return roles
     }
 
     static async getById ({ id }) {
-        const [resource] = await connection.query(
-            'SELECT * FROM recursos WHERE idRecursos = ?',
+        const [role] = await connection.query(
+            'SELECT * FROM rol WHERE idRol = ?',
             [id]
         )
-        if(resource.length === 0) {
+        if(role.length === 0) {
             return null
         }
 
-        return resource[0]
+        return role[0]
     }
 
     static async create ({ input }) {
         const {
             nombre,
         } = input
-
         try {
+
             const [result] = await connection.query(
-                'SELECT nombre FROM recursos WHERE Nombre = ?',
+                'SELECT nombre FROM rol WHERE Nombre = ?',
                 [nombre]
             )
 
@@ -41,25 +43,25 @@ export class resourceModel {
             }
 
             await connection.query(
-                'INSERT INTO recursos (Nombre) VALUES (?)',
+                'INSERT INTO rol (Nombre) VALUES (?)',
                 [nombre]
             )
         }
         catch (error) {
-            throw new Error("Error al crear el recurso")
+            throw new Error("Error al crear el rol")
         }
 
-        const [resource] = await connection.query(
+        const [role] = await connection.query(
             `SELECT *
-             FROM recursos WHERE idRecursos = LAST_INSERT_ID();`
+             FROM rol WHERE idRol = LAST_INSERT_ID();`
         )
-        return resource[0]
+        return role[0]
     }
 
     static async delete ({ id }) {
         try {
             const [result] = await connection.query(
-                'SELECT * FROM reservacion_recursos WHERE idRecurso = ?',
+                'SELECT * FROM usuario WHERE idRol = ?',
                 [id]
             )
 
@@ -68,12 +70,12 @@ export class resourceModel {
             }
 
             await connection.query(
-                'DELETE FROM recursos WHERE idRecursos = ?',
+                'DELETE FROM rol WHERE idRol = ?',
                 [id]
             )
         }
         catch (error) {
-            throw new Error("Error al eliminar el recurso")
+            throw new Error("Error al eliminar el rol")
         }
         return true
     }
@@ -84,8 +86,9 @@ export class resourceModel {
         } = input
 
         try {
+
             const [duplicate] = await connection.query(
-                'SELECT nombre FROM recursos WHERE Nombre = ?',
+                'SELECT nombre FROM rol WHERE Nombre = ?',
                 [nombre]
             )
             if (duplicate.length > 0) {
@@ -93,25 +96,38 @@ export class resourceModel {
             }
 
             const [result] = await connection.query(
-                `UPDATE recursos
-                 SET Nombre = COALESCE(?, Nombre)
-                 WHERE idRecursos = ?;`,
+                `UPDATE rol
+       SET Nombre = COALESCE(?, Nombre)
+       WHERE idRol = ?;`,
                 [nombre, id]
             );
             if (result.affectedRows === 0) {
-                throw new Error('No se encontro el recurso con ese id');
+                throw new Error('No se encontro el rol con ese id');
             }
 
-            const [updatedResource] = await connection.query(
+            const [updatedRole] = await connection.query(
                 `SELECT *
-                 FROM recursos WHERE idRecursos = ?;`,
+                    FROM rol WHERE idRol = ?;`,
                 [id]
             );
 
-            return updatedResource[0];
+            return updatedRole[0];
         } catch (error) {
-            throw new Error("Error al actualizar el recurso");
+            throw new Error("Error al actualizar el Rol");
         }
+    }
+
+    static async getByRoleName({ nombre }) {
+        const [role] = await connection.query(
+          'SELECT * FROM rol WHERE LOWER(Nombre) = LOWER(?)',
+          [nombre]
+        );
+
+        if (role.length === 0) {
+            return null;
+        }
+
+        return role[0];
     }
 
 }

@@ -109,8 +109,8 @@ export class categoryModel {
 
             const [result] = await connection.query(
                 `UPDATE categoria
-       SET Nombre = COALESCE(?, Nombre)
-       WHERE idCategoria = ?;`,
+                 SET Nombre = COALESCE(?, Nombre)
+                 WHERE idCategoria = ?;`,
                 [nombre, id]
             );
             if (result.affectedRows === 0) {
@@ -119,7 +119,7 @@ export class categoryModel {
 
             const [updatedCategory] = await connection.query(
                 `SELECT *
-                    FROM categoria WHERE idCategoria = ?;`,
+                 FROM categoria WHERE idCategoria = ?;`,
                 [id]
             );
 

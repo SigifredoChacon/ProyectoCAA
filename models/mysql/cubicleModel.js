@@ -114,7 +114,7 @@ export class cubicleModel {
 
             const [updatedCubicle] = await connection.query(
                 `SELECT *
-                    FROM cubiculo WHERE idCubiculo = ?;`,
+                 FROM cubiculo WHERE idCubiculo = ?;`,
                 [id]
             );
 
@@ -129,11 +129,11 @@ export class cubicleModel {
 
             const [result] = await connection.query(
                 `UPDATE cubiculo
-             SET Estado = 0;`
+                 SET Estado = 0;`
             );
             const [updatedCubicles] = await connection.query(
                 `SELECT *
-                FROM cubiculo;`,
+                 FROM cubiculo;`,
             );
 
 
@@ -216,11 +216,11 @@ export class cubicleModel {
 
             const [result] = await connection.query(
                 `UPDATE cubiculo
-             SET Estado = 1;`
+                 SET Estado = 1;`
             );
             const [updatedCubicles] = await connection.query(
                 `SELECT *
-                FROM cubiculo;`,
+                 FROM cubiculo;`,
             );
 
 

@@ -1,8 +1,8 @@
 export const DBConfig = {
     host: 'localhost',
-    user: 'soporte',
-    port: 3306,
-    password: '$_Thor_ADM_3_$',
-    database: 'reserva-salas-caa',
+    user: 'postgres',
+    port: 5432,
+    password: 'root',
+    database: 'sistemacaa_pg',
 };
 
