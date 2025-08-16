@@ -16,7 +16,7 @@ export class resourceModel {
 
     static async getById({ id }) {
         const { rows: resource } = await pool.query(
-            'SELECT * FROM recursos WHERE idRecursos = $1',
+            'SELECT * FROM recursos WHERE "idRecursos" = $1',
             [id]
         );
 
@@ -32,7 +32,7 @@ export class resourceModel {
 
         try {
             const { rows: result } = await pool.query(
-                'SELECT nombre FROM recursos WHERE Nombre = $1',
+                'SELECT "Nombre" FROM recursos WHERE "Nombre" = $1',
                 [nombre]
             );
 
@@ -41,7 +41,7 @@ export class resourceModel {
             }
 
             const { rows: inserted } = await pool.query(
-                'INSERT INTO recursos (Nombre) VALUES ($1) RETURNING *',
+                'INSERT INTO recursos ("Nombre") VALUES ($1) RETURNING *',
                 [nombre]
             );
 
@@ -54,7 +54,7 @@ export class resourceModel {
     static async delete({ id }) {
         try {
             const { rows: result } = await pool.query(
-                'SELECT * FROM reservacion_recursos WHERE idRecurso = $1',
+                'SELECT * FROM reservacion_recursos WHERE "idRecurso" = $1',
                 [id]
             );
 
@@ -63,7 +63,7 @@ export class resourceModel {
             }
 
             await pool.query(
-                'DELETE FROM recursos WHERE idRecursos = $1',
+                'DELETE FROM recursos WHERE "idRecursos" = $1',
                 [id]
             );
         } catch (error) {
@@ -77,7 +77,7 @@ export class resourceModel {
 
         try {
             const { rows: duplicate } = await pool.query(
-                'SELECT nombre FROM recursos WHERE Nombre = $1',
+                'SELECT "Nombre" FROM recursos WHERE "Nombre" = $1',
                 [nombre]
             );
             if (duplicate.length > 0) {
@@ -86,8 +86,8 @@ export class resourceModel {
 
             const { rowCount } = await pool.query(
                 `UPDATE recursos
-                 SET Nombre = COALESCE($1, Nombre)
-                 WHERE idRecursos = $2;`,
+                 SET "Nombre" = COALESCE($1, "Nombre")
+                 WHERE "idRecursos" = $2;`,
                 [nombre, id]
             );
             if (rowCount === 0) {
@@ -96,7 +96,7 @@ export class resourceModel {
 
             const { rows: updatedResource } = await pool.query(
                 `SELECT *
-                 FROM recursos WHERE idRecursos = $1;`,
+                 FROM recursos WHERE "idRecursos" = $1;`,
                 [id]
             );
 

@@ -20,7 +20,7 @@ export class cubicleModel {
 
     static async getById({ id }) {
         const { rows: cubicle } = await pool.query(
-            'SELECT * FROM cubiculo WHERE idCubiculo = $1',
+            'SELECT * FROM cubiculo WHERE "idCubiculo" = $1',
             [id]
         );
 
@@ -37,7 +37,7 @@ export class cubicleModel {
         try {
             // Verificar si ya existe un cubículo con ese nombre
             const { rows: result } = await pool.query(
-                'SELECT nombre FROM cubiculo WHERE Nombre = $1',
+                'SELECT "Nombre" FROM cubiculo WHERE "Nombre" = $1',
                 [nombre]
             );
 
@@ -47,7 +47,7 @@ export class cubicleModel {
 
             // Insertar y obtener el id insertado usando RETURNING
             const { rows: inserted } = await pool.query(
-                'INSERT INTO cubiculo (nombre, ventana, estado) VALUES ($1, $2, $3) RETURNING idCubiculo',
+                'INSERT INTO cubiculo ("Nombre", "Ventana", "Estado") VALUES ($1, $2, $3) RETURNING "idCubiculo"',
                 [nombre, ventana, estado]
             );
 
@@ -55,7 +55,7 @@ export class cubicleModel {
 
             // Obtener el cubículo insertado
             const { rows: cubicle } = await pool.query(
-                'SELECT * FROM cubiculo WHERE idCubiculo = $1',
+                'SELECT * FROM cubiculo WHERE "idCubiculo" = $1',
                 [insertedId]
             );
 
@@ -143,10 +143,10 @@ export class cubicleModel {
             );
 
             const { rows: userDetails } = await pool.query(
-                `SELECT "Usuario"."Nombre", "Usuario"."CorreoEmail"
-                 FROM "Usuario"
-                          INNER JOIN "Rol" ON "Usuario"."idRol" = "Rol"."idRol"
-                 WHERE "Rol"."Nombre" IN ('Administrador', 'Profesor');`
+                `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
+                 FROM "usuario"
+                          INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
+                 WHERE "rol"."Nombre" IN ('Administrador', 'Profesor');`
             );
 
             const emailSubject = 'Bloqueo de cubículos';
@@ -230,10 +230,10 @@ export class cubicleModel {
             );
 
             const { rows: userDetails } = await pool.query(
-                `SELECT "Usuario"."Nombre", "Usuario"."CorreoEmail"
-                 FROM "Usuario"
-                          INNER JOIN "Rol" ON "Usuario"."idRol" = "Rol"."idRol"
-                 WHERE "Rol"."Nombre" IN ('Administrador', 'Profesor');`
+                `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
+                 FROM "usuario"
+                          INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
+                 WHERE "rol"."Nombre" IN ('Administrador', 'Profesor');`
             );
 
 

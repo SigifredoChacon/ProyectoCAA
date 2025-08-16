@@ -18,7 +18,7 @@ export class categoryModel {
 
     static async getByCategoryName({ nombre }) {
         const { rows: state } = await pool.query(
-            'SELECT * FROM categoria WHERE LOWER(Nombre) = LOWER($1)',
+            'SELECT * FROM categoria WHERE LOWER("Nombre") = LOWER($1)',
             [nombre]
         );
 
@@ -31,7 +31,7 @@ export class categoryModel {
 
     static async getById({ id }) {
         const { rows: category } = await pool.query(
-            'SELECT * FROM categoria WHERE idCategoria = $1',
+            'SELECT * FROM categoria WHERE "idCategoria" = $1',
             [id]
         );
 
@@ -46,7 +46,7 @@ export class categoryModel {
         const { nombre } = input;
         try {
             const { rows: result } = await pool.query(
-                'SELECT nombre FROM categoria WHERE Nombre = $1',
+                'SELECT "Nombre" FROM categoria WHERE "Nombre" = $1',
                 [nombre]
             );
 
@@ -55,7 +55,7 @@ export class categoryModel {
             }
 
             const { rows: inserted } = await pool.query(
-                'INSERT INTO categoria (Nombre) VALUES ($1) RETURNING *',
+                'INSERT INTO categoria ("Nombre") VALUES ($1) RETURNING *',
                 [nombre]
             );
 
@@ -68,7 +68,7 @@ export class categoryModel {
     static async delete({ id }) {
         try {
             const { rows: result } = await pool.query(
-                'SELECT * FROM activo WHERE idCategoria = $1',
+                'SELECT * FROM activo WHERE "idCategoria" = $1',
                 [id]
             );
 
@@ -77,7 +77,7 @@ export class categoryModel {
             }
 
             await pool.query(
-                'DELETE FROM categoria WHERE idCategoria = $1',
+                'DELETE FROM categoria WHERE "idCategoria" = $1',
                 [id]
             );
         } catch (error) {
@@ -91,7 +91,7 @@ export class categoryModel {
 
         try {
             const { rows: duplicate } = await pool.query(
-                'SELECT nombre FROM categoria WHERE Nombre = $1',
+                'SELECT "Nombre" FROM categoria WHERE "Nombre" = $1',
                 [nombre]
             );
             if (duplicate.length > 0) {
@@ -100,8 +100,8 @@ export class categoryModel {
 
             const { rowCount } = await pool.query(
                 `UPDATE categoria
-                 SET Nombre = COALESCE($1, Nombre)
-                 WHERE idCategoria = $2;`,
+                 SET "Nombre" = COALESCE($1, "Nombre")
+                 WHERE "idCategoria" = $2;`,
                 [nombre, id]
             );
             if (rowCount === 0) {
@@ -110,7 +110,7 @@ export class categoryModel {
 
             const { rows: updatedCategory } = await pool.query(
                 `SELECT *
-                 FROM categoria WHERE idCategoria = $1;`,
+                 FROM categoria WHERE "idCategoria" = $1;`,
                 [id]
             );
 

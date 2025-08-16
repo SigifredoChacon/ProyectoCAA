@@ -17,7 +17,7 @@ export class RoomModel {
 
     static async getById({ id }) {
         const { rows: room } = await pool.query(
-            'SELECT * FROM sala WHERE idSala = $1',
+            'SELECT * FROM sala WHERE "idSala" = $1',
             [id]
         );
         if (room.length === 0) {
@@ -28,7 +28,7 @@ export class RoomModel {
 
     static async getNameById({ id }) {
         const { rows: room } = await pool.query(
-            'SELECT Nombre FROM sala WHERE idSala = $1',
+            'SELECT "Nombre" FROM sala WHERE "idSala" = $1',
             [id]
         );
         if (room.length === 0) {
@@ -48,7 +48,7 @@ export class RoomModel {
 
         try {
             const { rows: existing } = await pool.query(
-                'SELECT nombre FROM sala WHERE "Nombre" = $1',
+                'SELECT "Nombre" FROM sala WHERE "Nombre" = $1',
                 [nombre]
             );
 
@@ -100,7 +100,7 @@ export class RoomModel {
 
         try {
             const { rows: duplicate } = await pool.query(
-                'SELECT nombre FROM sala WHERE "Nombre" = $1',
+                'SELECT "Nombre" FROM sala WHERE "Nombre" = $1',
                 [nombre]
             );
 
@@ -151,10 +151,10 @@ export class RoomModel {
 
             // Obtener usuarios con roles especificados
             const { rows: userDetails } = await pool.query(
-                `SELECT "Usuario"."Nombre", "Usuario"."CorreoEmail"
-                 FROM "Usuario"
-                          INNER JOIN "Rol" ON "Usuario"."idRol" = "Rol"."idRol"
-                 WHERE "Rol"."Nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
+                `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
+                 FROM "usuario"
+                          INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
+                 WHERE "rol"."Nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
             );
 
 
@@ -241,10 +241,10 @@ export class RoomModel {
 
             // Obtener usuarios con roles especificados
             const { rows: userDetails } = await pool.query(
-                `SELECT "Usuario"."Nombre", "Usuario"."CorreoEmail"
-                 FROM "Usuario"
-                          INNER JOIN "Rol" ON "Usuario"."idRol" = "Rol"."idRol"
-                 WHERE "Rol"."Nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
+                `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
+                 FROM "usuario"
+                          INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
+                 WHERE "rol"."Nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
             );
 
             const emailSubject = 'Reactivación de reservas de Salas';
