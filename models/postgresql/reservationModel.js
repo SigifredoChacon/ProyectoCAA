@@ -1,53 +1,54 @@
-import mysql from 'mysql2/promise'
-import { DBConfig } from '../../DBConfig.js'
 import {sendEmail} from "../../services/emailService.js";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-const connection = await mysql.createConnection(DBConfig)
+import pkg from 'pg';
+const { Pool } = pkg;
+import {DBConfig} from '../../DBConfig.js'
+
+const pool = new Pool(DBConfig);
+
 
 export class reservationModel {
 
-  static async getAll ({page = 1, itemsPerPage=10}) {
+  static async getAll ({ page = 1, itemsPerPage = 10 }) {
     const offset = (page - 1) * itemsPerPage;
 
-
     // Contar el número total de reservaciones
-    const [totalCountResult] = await connection.query(
-        `SELECT COUNT(*) as total 
-         FROM reservacion 
-         WHERE Estado = 1;`,
-
+    const { rows: totalCountResult } = await pool.query(
+        `SELECT COUNT(*) AS "total"
+         FROM "reservacion"
+         WHERE "Estado" = 1;`
     );
 
-    const totalReservations = totalCountResult[0].total;
+    const totalReservations = parseInt(totalCountResult[0].total, 10);
     const totalPages = Math.ceil(totalReservations / itemsPerPage);
 
     // Obtener las reservaciones paginadas
-    const [reservations] = await connection.query(
-        `SELECT 
-          r.idReservacion,
-          r.Fecha,
-          r.HoraInicio,
-          r.HoraFin,
-          r.idSala,
-          r.idCubiculo,
-          r.idUsuario,
-          r.EncuestaCompletada,
-          rr.idRecurso,
-          rec.nombre AS NombreRecurso,
-          r.Observaciones,
-          r.Refrigerio
-        FROM 
-          reservacion r
-        LEFT JOIN 
-          reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-        LEFT JOIN 
-          recursos rec ON rr.idRecurso = rec.idRecursos
-        WHERE 
-          r.Estado = 1 
-        ORDER BY r.idReservacion DESC
-        LIMIT ? OFFSET ?;`,
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           r."idReservacion",
+           r."Fecha",
+           r."HoraInicio",
+           r."HoraFin",
+           r."idSala",
+           r."idCubiculo",
+           r."idUsuario",
+           r."EncuestaCompletada",
+           rr."idRecurso",
+           rec."nombre" AS "NombreRecurso",
+           r."Observaciones",
+           r."Refrigerio"
+         FROM
+           "reservacion" r
+             LEFT JOIN
+           "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
+             LEFT JOIN
+           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE
+           r."Estado" = 1
+         ORDER BY r."idReservacion" DESC
+           LIMIT $1 OFFSET $2;`,
         [itemsPerPage, offset]
     );
 
@@ -60,18 +61,18 @@ export class reservationModel {
 
     const reservationIds = reservations.map(r => r.idReservacion);
 
-    // Obtener recursos
-    const [resources] = await connection.query(
-        `SELECT 
-          rr.idReservacion,
-          rr.idRecurso,
-          rec.nombre AS NombreRecurso
-        FROM 
-          reservacion_recursos rr
-        LEFT JOIN 
-          recursos rec ON rr.idRecurso = rec.idRecursos
-        WHERE 
-          rr.idReservacion IN (?);`,
+    // Obtener recursos relacionados
+    const { rows: resources } = await pool.query(
+        `SELECT
+           rr."idReservacion",
+           rr."idRecurso",
+           rec."nombre" AS "NombreRecurso"
+         FROM
+           "reservacion_recursos" rr
+             LEFT JOIN
+           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE
+           rr."idReservacion" = ANY($1::int[]);`,
         [reservationIds]
     );
 
@@ -98,28 +99,29 @@ export class reservationModel {
     };
   }
 
+
   static async getAllPendingReservations () {
-    const [reservations] = await connection.query(
-      ` SELECT 
-    r.idReservacion,
-    r.Fecha,
-    r.HoraInicio,
-    r.HoraFin,
-    r.idSala,
-    r.idCubiculo,
-    r.idUsuario,
-    r.Observaciones,
-    r.Refrigerio,
-    rr.idRecurso,
-    rec.nombre AS NombreRecurso
-    FROM 
-        reservacion r
-    LEFT JOIN 
-        reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-    LEFT JOIN 
-        recursos rec ON rr.idRecurso = rec.idRecursos
-    WHERE r.Estado = 0;`
-    )
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           r."idReservacion",
+           r."Fecha",
+           r."HoraInicio",
+           r."HoraFin",
+           r."idSala",
+           r."idCubiculo",
+           r."idUsuario",
+           r."Observaciones",
+           r."Refrigerio",
+           rr."idRecurso",
+           rec."nombre" AS "NombreRecurso"
+         FROM
+           "reservacion" r
+             LEFT JOIN
+           "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
+             LEFT JOIN
+           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE r."Estado" = 0;`
+    );
 
     const reservationMap = {};
 
@@ -138,7 +140,6 @@ export class reservationModel {
         NombreRecurso,
       } = row;
 
-
       if (!reservationMap[idReservacion]) {
         reservationMap[idReservacion] = {
           idReservacion,
@@ -154,7 +155,6 @@ export class reservationModel {
         };
       }
 
-
       if (idRecurso) {
         reservationMap[idReservacion].recursos.push({
           idRecurso,
@@ -167,33 +167,33 @@ export class reservationModel {
   }
 
 
+
   static async getById({ id }) {
-    const [resources] = await connection.query(
-      `SELECT 
-        r.idReservacion,
-        r.Fecha,
-        r.HoraInicio,
-        r.HoraFin,
-        r.idSala,
-        r.idCubiculo,
-        r.idUsuario,
-        rr.idRecurso,
-        rec.nombre AS NombreRecurso
-     FROM 
-        reservacion r 
-     LEFT JOIN 
-        reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-     LEFT JOIN 
-        recursos rec ON rr.idRecurso = rec.idRecursos
-     WHERE 
-        r.idReservacion = ?;`,
-      [id]
+    const { rows: resources } = await pool.query(
+        `SELECT
+           r."idReservacion",
+           r."Fecha",
+           r."HoraInicio",
+           r."HoraFin",
+           r."idSala",
+           r."idCubiculo",
+           r."idUsuario",
+           rr."idRecurso",
+           rec."nombre" AS "NombreRecurso"
+         FROM
+           "reservacion" r
+             LEFT JOIN
+           "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
+             LEFT JOIN
+           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE
+           r."idReservacion" = $1;`,
+        [id]
     );
 
     if (resources.length === 0) {
       return null;
     }
-
 
     const reservacion = {
       idReservacion: resources[0].idReservacion,
@@ -203,54 +203,56 @@ export class reservationModel {
       idSala: resources[0].idSala,
       idCubiculo: resources[0].idCubiculo,
       idUsuario: resources[0].idUsuario,
-      recursos: resources.map((row) => ({
-        idRecurso: row.idRecurso,
-        NombreRecurso: row.NombreRecurso,
-      })).filter(recurso => recurso.idRecurso !== null)
+      recursos: resources
+          .map((row) => ({
+            idRecurso: row.idRecurso,
+            NombreRecurso: row.NombreRecurso,
+          }))
+          .filter((recurso) => recurso.idRecurso !== null),
     };
 
     return reservacion;
   }
 
 
+
   static async getByDate({ date }) {
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           *
+         FROM
+           "reservacion" r
+         WHERE
+           r."Fecha" = $1;`,
+        [date]
+    );
 
-    const [reservations] = await connection.query(
-      ` SELECT 
-        *
-    FROM 
-        reservacion r
-    WHERE 
-        r.Fecha = ?;`,
-      [date]
-    )
-
-    return reservations
+    return reservations;
   }
 
-  static async getByRoomId({ roomId }) {
 
-    const [reservations] = await connection.query(
-      ` SELECT 
-        r.idReservacion,
-        r.Fecha,
-        r.HoraInicio,
-        r.HoraFin,
-        r.idSala,
-        r.idCubiculo,
-        r.idUsuario,
-        rr.idRecurso,
-        rec.nombre AS NombreRecurso
-    FROM 
-        reservacion r
-    LEFT JOIN 
-        reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-    LEFT JOIN 
-        recursos rec ON rr.idRecurso = rec.idRecursos
-    WHERE 
-        r.idSala = ?;`,
-      [roomId]
-    )
+  static async getByRoomId({ roomId }) {
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           r."idReservacion",
+           r."Fecha",
+           r."HoraInicio",
+           r."HoraFin",
+           r."idSala",
+           r."idCubiculo",
+           r."idUsuario",
+           rr."idRecurso",
+           rec."nombre" AS "NombreRecurso"
+         FROM
+           "reservacion" r
+             LEFT JOIN
+           "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
+             LEFT JOIN
+           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE
+           r."idSala" = $1;`,
+        [roomId]
+    );
 
     const reservationMap = {};
 
@@ -267,7 +269,6 @@ export class reservationModel {
         NombreRecurso,
       } = row;
 
-
       if (!reservationMap[idReservacion]) {
         reservationMap[idReservacion] = {
           idReservacion,
@@ -281,7 +282,6 @@ export class reservationModel {
         };
       }
 
-
       if (idRecurso) {
         reservationMap[idReservacion].recursos.push({
           idRecurso,
@@ -292,26 +292,30 @@ export class reservationModel {
 
     return Object.values(reservationMap);
   }
+
+
+
   static async getReservationsByCubicleIdAndWeek({ cubicleId, startDate, endDate }) {
-    const [reservations] = await connection.query(
-        ` SELECT 
-        r.idReservacion,
-        r.Fecha,
-        r.HoraInicio,
-        r.HoraFin,
-        r.idSala,
-        r.idCubiculo,
-        r.idUsuario,
-        rr.idRecurso,
-        rec.nombre AS NombreRecurso
-      FROM 
-        reservacion r
-      LEFT JOIN 
-        reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-      LEFT JOIN 
-        recursos rec ON rr.idRecurso = rec.idRecursos
-      WHERE 
-        r.idCubiculo = ? AND r.Fecha BETWEEN ? AND ?;`,
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           r."idReservacion",
+           r."Fecha",
+           r."HoraInicio",
+           r."HoraFin",
+           r."idSala",
+           r."idCubiculo",
+           r."idUsuario",
+           rr."idRecurso",
+           rec."nombre" AS "NombreRecurso"
+         FROM
+           "reservacion" r
+             LEFT JOIN
+           "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
+             LEFT JOIN
+           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE
+           r."idCubiculo" = $1
+           AND r."Fecha" BETWEEN $2 AND $3;`,
         [cubicleId, startDate, endDate]
     );
 
@@ -352,26 +356,29 @@ export class reservationModel {
 
     return Object.values(reservationMap);
   }
+
+
+
   static async getReservationsByRoomIdAndWeek({ roomId, startDate, endDate }) {
-    const [reservations] = await connection.query(
-        ` SELECT 
-            r.idReservacion,
-            r.Fecha,
-            r.HoraInicio,
-            r.HoraFin,
-            r.idSala,
-            r.idCubiculo,
-            r.idUsuario,
-            rr.idRecurso,
-            rec.nombre AS NombreRecurso
-        FROM 
-            reservacion r
-        LEFT JOIN 
-            reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-        LEFT JOIN 
-            recursos rec ON rr.idRecurso = rec.idRecursos
-        WHERE 
-            r.idSala = ? AND r.Fecha BETWEEN ? AND ?;`,
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           r."idReservacion",
+           r."Fecha",
+           r."HoraInicio",
+           r."HoraFin",
+           r."idSala",
+           r."idCubiculo",
+           r."idUsuario",
+           rr."idRecurso",
+           rec."nombre" AS "NombreRecurso"
+         FROM
+           "reservacion" r
+             LEFT JOIN
+           "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
+             LEFT JOIN
+           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE
+           r."idSala" = $1 AND r."Fecha" BETWEEN $2 AND $3;`,
         [roomId, startDate, endDate]
     );
 
@@ -414,111 +421,121 @@ export class reservationModel {
   }
 
 
-  static async getByCubicleId({ cubicleId }) {
-    const [reservations] = await connection.query(
-      ` SELECT 
-        *
-    FROM 
-        reservacion 
-    WHERE 
-        idCubiculo = ?;`,
-      [cubicleId]
-    )
 
+  static async getByCubicleId({ cubicleId }) {
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           *
+         FROM
+           "reservacion"
+         WHERE
+           "idCubiculo" = $1;`,
+        [cubicleId]
+    );
 
     return reservations;
   }
 
-  static async getByYear({ year }) {
-    const [reservations] = await connection.query(
-      ` SELECT 
-        *
-    FROM 
-        reservacion 
-    WHERE 
-        YEAR(Fecha) = ?;`,
-      [year]
-    )
 
-    return reservations
+  static async getByYear({ year }) {
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           *
+         FROM
+           "reservacion"
+         WHERE
+           EXTRACT(YEAR FROM "Fecha") = $1;`,
+        [year]
+    );
+
+    return reservations;
   }
+
 
   static async getByMonth({ year, month }) {
-    const [reservations] = await connection.query(
-      'SELECT * FROM reservacion WHERE YEAR(Fecha) = ? AND MONTH(Fecha) = ?',
-      [year, month])
+    const { rows: reservations } = await pool.query(
+        `SELECT 
+        *
+     FROM 
+        "reservacion"
+     WHERE 
+        EXTRACT(YEAR FROM "Fecha") = $1 
+        AND EXTRACT(MONTH FROM "Fecha") = $2;`,
+        [year, month]
+    );
 
-    return reservations
+    return reservations;
   }
+
 
   static async getByDateRange({ startDate, endDate }) {
-    const [reservations] = await connection.query(
-      ` SELECT 
-        *
-    FROM 
-        reservacion 
-    WHERE 
-        Fecha BETWEEN ? AND ?;`,
-      [startDate, endDate]
-    )
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           *
+         FROM
+           "reservacion"
+         WHERE
+           "Fecha" BETWEEN $1 AND $2;`,
+        [startDate, endDate]
+    );
 
-    return reservations
+    return reservations;
   }
+
   static async getByUserIdCompleted({ id }) {
-    const [reservations] = await connection.query(
-      ` SELECT 
-        *
-    FROM 
-        reservacion 
-    WHERE 
-        idUsuario = ? AND EncuestaCompletada = 0;`,
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           *
+         FROM
+           "reservacion"
+         WHERE
+           "idUsuario" = $1 AND "EncuestaCompletada" = 0;`,
+        [id]
+    );
 
-      [id]
-    )
-
-    return reservations
+    return reservations;
   }
 
-  static async getByUserId({ userId, page = 1, itemsPerPage=10 }) {
+
+  static async getByUserId({ userId, page = 1, itemsPerPage = 10 }) {
     const offset = (page - 1) * itemsPerPage;
 
-
     // Contar el número total de reservaciones
-    const [totalCountResult] = await connection.query(
-        `SELECT COUNT(*) as total 
-         FROM reservacion 
-         WHERE Estado = 1 AND idUsuario = ?;`,
+    const { rows: totalCountResult } = await pool.query(
+        `SELECT COUNT(*) as total
+         FROM "reservacion"
+         WHERE "Estado" = 1 AND "idUsuario" = $1;`,
         [userId]
     );
 
-    const totalReservations = totalCountResult[0].total;
+    const totalReservations = parseInt(totalCountResult[0].total, 10);
     const totalPages = Math.ceil(totalReservations / itemsPerPage);
 
     // Obtener las reservaciones paginadas
-    const [reservations] = await connection.query(
-        `SELECT 
-          r.idReservacion,
-          r.Fecha,
-          r.HoraInicio,
-          r.HoraFin,
-          r.idSala,
-          r.idCubiculo,
-          r.idUsuario,
-          r.EncuestaCompletada,
-          rr.idRecurso,
-          rec.nombre AS NombreRecurso,
-          r.Observaciones,
-          r.Refrigerio
-        FROM 
-          reservacion r
-        LEFT JOIN 
-          reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-        LEFT JOIN 
-          recursos rec ON rr.idRecurso = rec.idRecursos
-        WHERE 
-          r.Estado = 1 AND r.idUsuario = ?
-        ORDER BY r.idReservacion DESC
-        LIMIT ? OFFSET ?;`,
+    const { rows: reservations } = await pool.query(
+        `SELECT
+           r."idReservacion",
+           r."Fecha",
+           r."HoraInicio",
+           r."HoraFin",
+           r."idSala",
+           r."idCubiculo",
+           r."idUsuario",
+           r."EncuestaCompletada",
+           rr."idRecurso",
+           rec."nombre" AS "NombreRecurso",
+           r."Observaciones",
+           r."Refrigerio"
+         FROM
+           "reservacion" r
+             LEFT JOIN
+           "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
+             LEFT JOIN
+           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE
+           r."Estado" = 1 AND r."idUsuario" = $1
+         ORDER BY r."idReservacion" DESC
+           LIMIT $2 OFFSET $3;`,
         [userId, itemsPerPage, offset]
     );
 
@@ -532,17 +549,17 @@ export class reservationModel {
     const reservationIds = reservations.map(r => r.idReservacion);
 
     // Obtener recursos
-    const [resources] = await connection.query(
-        `SELECT 
-          rr.idReservacion,
-          rr.idRecurso,
-          rec.nombre AS NombreRecurso
-        FROM 
-          reservacion_recursos rr
-        LEFT JOIN 
-          recursos rec ON rr.idRecurso = rec.idRecursos
-        WHERE 
-          rr.idReservacion IN (?);`,
+    const { rows: resources } = await pool.query(
+        `SELECT
+           rr."idReservacion",
+           rr."idRecurso",
+           rec."nombre" AS "NombreRecurso"
+         FROM
+           "reservacion_recursos" rr
+             LEFT JOIN
+           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE
+           rr."idReservacion" = ANY($1::int[]);`,
         [reservationIds]
     );
 
@@ -574,10 +591,7 @@ export class reservationModel {
 
 
 
-
-
-
-  static async create ({ input }) {
+  static async create({ input }) {
     const {
       fecha,
       horaInicio,
@@ -590,63 +604,56 @@ export class reservationModel {
       idRecursos,
       estado,
       encuestaCompletada,
-    } = input
+    } = input;
 
     try {
+      const fechaToDate = new Date(fecha);
 
+      // Insertar reservación y devolver la fila insertada
+      const { rows: result } = await pool.query(
+          `INSERT INTO "reservacion" 
+        ("Fecha","HoraInicio","HoraFin","idSala","idCubiculo","idUsuario","Observaciones","Refrigerio","Estado","EncuestaCompletada") 
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING *;`,
+          [fechaToDate, horaInicio, horaFin, idSala, idCubiculo, idUsuario, observaciones, refrigerio, estado, encuestaCompletada]
+      );
 
-      const fechaToDate = new Date(fecha)
+      const reservationDetails = result[0];
 
-      const [result] = await connection.query(
-        'INSERT INTO reservacion (Fecha,HoraInicio,HoraFin,idSala,idCubiculo,idUsuario,Observaciones,Refrigerio, Estado, EncuestaCompletada) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        [fechaToDate, horaInicio, horaFin, idSala, idCubiculo, idUsuario, observaciones, refrigerio, estado, encuestaCompletada]
-      )
-
-      const [userDetails] = await connection.query(
-          'SELECT Nombre, CorreoEmail FROM Usuario WHERE CedulaCarnet = ?',
+      // Obtener datos de usuario
+      const { rows: userDetails } = await pool.query(
+          `SELECT "Nombre", "CorreoEmail" FROM "Usuario" WHERE "CedulaCarnet" = $1;`,
           [idUsuario]
       );
 
-
-      const[cubicleDetails] = await connection.query(
-          'SELECT Nombre FROM Cubiculo WHERE idCubiculo = ?',
+      // Obtener detalles de cubículo y sala
+      const { rows: cubicleDetails } = await pool.query(
+          `SELECT "Nombre" FROM "Cubiculo" WHERE "idCubiculo" = $1;`,
           [idCubiculo]
-        );
+      );
 
+      const { rows: roomDetails } = await pool.query(
+          `SELECT "Nombre" FROM "Sala" WHERE "idSala" = $1;`,
+          [idSala]
+      );
 
-
-      const[roomDetails] = await connection.query(
-            'SELECT Nombre FROM Sala WHERE idSala = ?',
-            [idSala]
-        );
-
+      // Enviar email si hay usuario y la reserva está activa
       if (userDetails.length > 0 && estado) {
-
-
         const { Nombre, CorreoEmail } = userDetails[0];
-
-
-        const [reservation] = await connection.query(
-            `SELECT *
-         FROM reservacion WHERE idReservacion = LAST_INSERT_ID();`
-        );
-
-
-        const reservationDetails = reservation[0];
         const emailSubject = 'Confirmación de Reservación';
-        const emailText = `
-      Hola ${Nombre},
-      
-      Se ha realizado una nueva reservación con los siguientes detalles:
-      Fecha: ${reservationDetails.Fecha}
-      Hora de Inicio: ${reservationDetails.HoraInicio}
-      Hora de Fin: ${reservationDetails.HoraFin}
-      Sala: ${idSala ? `Sala ${roomDetails[0].Nombre}` : 'N/A'}
-      Cubículo: ${idCubiculo ? `Cubículo ${cubicleDetails[0].Nombre}` : 'N/A'}
-      Observaciones: ${observaciones || 'Ninguna'}
-    `;
-
         const formattedDate = format(new Date(reservationDetails.Fecha), 'EEEE, dd MMMM yyyy', { locale: es });
+
+        const emailText = `
+Hola ${Nombre},
+
+Se ha realizado una nueva reservación con los siguientes detalles:
+Fecha: ${reservationDetails.Fecha}
+Hora de Inicio: ${reservationDetails.HoraInicio}
+Hora de Fin: ${reservationDetails.HoraFin}
+Sala: ${idSala ? `Sala ${roomDetails[0].Nombre}` : 'N/A'}
+Cubículo: ${idCubiculo ? `Cubículo ${cubicleDetails[0].Nombre}` : 'N/A'}
+Observaciones: ${observaciones || 'Ninguna'}
+`;
 
         const emailHtml = `
 <div style="padding: 20px; background-color: #f4f4f4;">
@@ -697,130 +704,120 @@ export class reservationModel {
 </div>
 `;
 
-        sendEmail(
-            CorreoEmail,
-            emailSubject,
-            emailText,
-            emailHtml
-        );
+        sendEmail(CorreoEmail, emailSubject, emailText, emailHtml);
       }
 
-
-
-
+      // Insertar recursos asociados
       if (Array.isArray(idRecursos) && idRecursos.length > 0) {
         const insertPromises = idRecursos.map(idRecurso => {
-          return connection.query(
-            'INSERT INTO reservacion_recursos (idReservacion, idRecurso) VALUES (?, ?)',
-            [result.insertId, idRecurso]
+          return pool.query(
+              `INSERT INTO "reservacion_recursos" ("idReservacion","idRecurso") VALUES ($1,$2);`,
+              [reservationDetails.idReservacion, idRecurso]
           );
         });
         await Promise.all(insertPromises);
       }
-    }
 
-    catch (error) {
+      return reservationDetails;
+    } catch (error) {
       throw new Error(error);
     }
-
-    const [reservation] = await connection.query(
-      `SELECT *
-             FROM reservacion WHERE idReservacion = LAST_INSERT_ID();`
-    )
-    return reservation[0]
   }
 
+
   static async deleteByDate({ date }) {
-
-
     try {
-      const [reservations] = await connection.query(
-          'SELECT * FROM reservacion WHERE Fecha = ?;', [date]
+      // Obtener todas las reservaciones de esa fecha
+      const { rows: reservations } = await pool.query(
+          `SELECT * FROM "reservacion" WHERE "Fecha" = $1;`,
+          [date]
       );
 
+      // Eliminar recursos asociados
       for (const reservation of reservations) {
-        await connection.query(
-            'DELETE FROM reservacion_recursos WHERE idReservacion = ?',
+        await pool.query(
+            `DELETE FROM "reservacion_recursos" WHERE "idReservacion" = $1;`,
             [reservation.idReservacion]
         );
       }
 
-      await connection.query(
-          'DELETE FROM reservacion r WHERE r.Fecha = ?;',
+      // Eliminar las reservaciones
+      await pool.query(
+          `DELETE FROM "reservacion" WHERE "Fecha" = $1;`,
           [date]
       );
+
+    } catch (error) {
+      throw new Error(error);
     }
-    catch (error) {
-      throw new Error(error)
-    }
-    return true
+
+    return true;
   }
 
-  static async delete ({ id }) {
+
+  static async delete({ id }) {
     try {
-
-      const [reservation] = await connection.query(
-        'SELECT * FROM reservacion WHERE idReservacion = ?;', [id]
+      // Obtener la reservación
+      const { rows: reservations } = await pool.query(
+          `SELECT * FROM "reservacion" WHERE "idReservacion" = $1;`,
+          [id]
       );
 
-      await connection.query(
-        'DELETE FROM reservacion_recursos WHERE idReservacion = ?',
-        [id]
-      );
-      await connection.query(
-        'DELETE FROM reservacion WHERE idReservacion = ?',
-        [id]
+      const reservation = reservations[0];
+
+      if (!reservation) {
+        throw new Error("Reservación no encontrada");
+      }
+
+      // Eliminar recursos asociados
+      await pool.query(
+          `DELETE FROM "reservacion_recursos" WHERE "idReservacion" = $1;`,
+          [id]
       );
 
-      if(reservation[0].Estado === 0){
+      // Eliminar la reservación
+      await pool.query(
+          `DELETE FROM "reservacion" WHERE "idReservacion" = $1;`,
+          [id]
+      );
 
-        const reservDe = reservation[0];
-        const [userDetails] = await connection.query(
-          'SELECT Nombre, CorreoEmail FROM Usuario WHERE CedulaCarnet = ?',
-          [reservation[0].idUsuario]
+      // Si la reserva estaba pendiente (Estado = 0), enviar email de rechazo
+      if (reservation.Estado === 0) {
+
+        const { rows: userDetails } = await pool.query(
+            `SELECT "Nombre", "CorreoEmail" FROM "Usuario" WHERE "CedulaCarnet" = $1;`,
+            [reservation.idUsuario]
         );
 
-
-        const[cubicleDetails] = await connection.query(
-          'SELECT Nombre FROM Cubiculo WHERE idCubiculo = ?',
-          [reservation[0].idCubiculo]
+        const { rows: cubicleDetails } = await pool.query(
+            `SELECT "Nombre" FROM "Cubiculo" WHERE "idCubiculo" = $1;`,
+            [reservation.idCubiculo]
         );
 
-
-
-        const[roomDetails] = await connection.query(
-          'SELECT Nombre FROM Sala WHERE idSala = ?',
-          [reservation[0].idSala]
+        const { rows: roomDetails } = await pool.query(
+            `SELECT "Nombre" FROM "Sala" WHERE "idSala" = $1;`,
+            [reservation.idSala]
         );
 
         if (userDetails.length > 0) {
-
-
           const { Nombre, CorreoEmail } = userDetails[0];
 
-
-          const [reservation] = await connection.query(
-            `SELECT *
-         FROM reservacion WHERE idReservacion = ?;`, [id]
-          );
-
-
-          const reservationDetails = reservDe;
+          const reservationDetails = reservation;
           const emailSubject = 'Rechazo de Reservación';
-          const emailText = `
-      Hola ${Nombre},
-      
-      La reserva que solicitaste con los siguiente datos a sido rechazada :(
-      Si quieres saber los motivos contacta con la administración.
-      Fecha: ${reservationDetails.Fecha}
-      Hora de Inicio: ${reservationDetails.HoraInicio}
-      Hora de Fin: ${reservationDetails.HoraFin}
-      Sala: ${reservationDetails.idSala ? `Sala ${roomDetails[0].Nombre}` : 'N/A'}
-      Cubículo: ${reservationDetails.idCubiculo ? `Cubículo ${cubicleDetails[0].Nombre}` : 'N/A'}
-      Observaciones: ${reservationDetails.Observaciones || 'Ninguna'}
-    `;
-
           const formattedDate = format(new Date(reservationDetails.Fecha), 'EEEE, dd MMMM yyyy', { locale: es });
+
+          const emailText = `
+Hola ${Nombre},
+
+La reserva que solicitaste con los siguientes datos ha sido rechazada :(
+Si quieres saber los motivos contacta con la administración.
+Fecha: ${reservationDetails.Fecha}
+Hora de Inicio: ${reservationDetails.HoraInicio}
+Hora de Fin: ${reservationDetails.HoraFin}
+Sala: ${reservationDetails.idSala ? `Sala ${roomDetails[0].Nombre}` : 'N/A'}
+Cubículo: ${reservationDetails.idCubiculo ? `Cubículo ${cubicleDetails[0].Nombre}` : 'N/A'}
+Observaciones: ${reservationDetails.Observaciones || 'Ninguna'}
+`;
 
           const emailHtml = `
 <div style="padding: 20px; background-color: #f4f4f4;">
@@ -872,22 +869,21 @@ export class reservationModel {
 `;
 
           sendEmail(
-            CorreoEmail,
-            emailSubject,
-            emailText,
-            emailHtml
+              CorreoEmail,
+              emailSubject,
+              emailText,
+              emailHtml
           );
         }
       }
-
-
+    } catch (error) {
+      console.error(error);
+      throw new Error();
     }
-    catch (error) {
-      console.error(error)
-      throw new Error()
-    }
-    return true
+
+    return true;
   }
+
 
 
 
@@ -901,130 +897,112 @@ export class reservationModel {
       refrigerio,
       estado,
       encuestaCompletada
-    } = input
+    } = input;
+
     try {
-
-      const [horaIni] = await connection.query(
-        'SELECT HoraInicio FROM reservacion WHERE HoraInicio = ? AND Fecha = ?',
-        [horaInicio, fecha]
-      )
-
-      if (horaIni.length > 0) {
-        console.log("1")
-        return false
-      }
-
-      const [horaFinal] = await connection.query(
-        'SELECT HoraFin FROM reservacion WHERE HoraFin = ? AND Fecha = ?',
-        [horaFin, fecha]
-      )
-
-      if (horaFinal.length > 0) {
-        console.log("2")
-        return false
-      }
-
-      const [result] = await connection.query(
-        `UPDATE reservacion
-           SET Fecha = COALESCE(?, Fecha),
-           HoraInicio = COALESCE(?, HoraInicio),
-           HoraFin = COALESCE(?, HoraFin),
-           Observaciones = COALESCE(?, Observaciones),
-           Refrigerio = COALESCE(?, Refrigerio),
-           Estado = COALESCE(?, Estado),
-           EncuestaCompletada = COALESCE(?, EncuestaCompletada)
-           WHERE idReservacion = ?;`,
-        [fecha, horaInicio,horaFin, observaciones,refrigerio,estado, encuestaCompletada, id]
+      // Verificar conflictos de horaInicio
+      const { rows: horaIni } = await pool.query(
+          `SELECT "HoraInicio" FROM "reservacion" WHERE "HoraInicio" = $1 AND "Fecha" = $2`,
+          [horaInicio, fecha]
       );
-      if (result.affectedRows === 0) {
-        throw new Error('No se encontro la reservacion con ese id');
-      }
+      if (horaIni.length > 0) return false;
 
-
-      const [currentResources] = await connection.query(
-        `SELECT idRecurso FROM reservacion_recursos WHERE idReservacion = ?;`,
-        [id]
+      // Verificar conflictos de horaFin
+      const { rows: horaFinal } = await pool.query(
+          `SELECT "HoraFin" FROM "reservacion" WHERE "HoraFin" = $1 AND "Fecha" = $2`,
+          [horaFin, fecha]
       );
+      if (horaFinal.length > 0) return false;
 
-      const currentResourceIds = currentResources.map((resource) => resource.idRecurso);
+      // Actualizar la reservación
+      const { rowCount } = await pool.query(
+          `UPDATE "reservacion"
+           SET "Fecha" = COALESCE($1, "Fecha"),
+               "HoraInicio" = COALESCE($2, "HoraInicio"),
+               "HoraFin" = COALESCE($3, "HoraFin"),
+               "Observaciones" = COALESCE($4, "Observaciones"),
+               "Refrigerio" = COALESCE($5, "Refrigerio"),
+               "Estado" = COALESCE($6, "Estado"),
+               "EncuestaCompletada" = COALESCE($7, "EncuestaCompletada")
+           WHERE "idReservacion" = $8;`,
+          [fecha, horaInicio, horaFin, observaciones, refrigerio, estado, encuestaCompletada, id]
+      );
+      if (rowCount === 0) throw new Error('No se encontró la reservación con ese id');
 
-      if (idRecursos && Array.isArray(idRecursos)) {
-        const resourcesToDelete = currentResourceIds.filter(
-          (idRecurso) => !idRecursos.includes(idRecurso)
+      // Actualizar recursos asociados
+      if (Array.isArray(idRecursos)) {
+        const { rows: currentResources } = await pool.query(
+            `SELECT "idRecurso" FROM "reservacion_recursos" WHERE "idReservacion" = $1`,
+            [id]
         );
+        const currentResourceIds = currentResources.map(r => r.idRecurso);
 
-        const resourcesToAdd = idRecursos.filter(
-          (idRecurso) => !currentResourceIds.includes(idRecurso)
-        );
+        const resourcesToDelete = currentResourceIds.filter(r => !idRecursos.includes(r));
+        const resourcesToAdd = idRecursos.filter(r => !currentResourceIds.includes(r));
 
         if (resourcesToDelete.length > 0) {
-          await connection.query(
-            `DELETE FROM reservacion_recursos WHERE idReservacion = ? AND idRecurso IN (?);`,
-            [id, resourcesToDelete]
+          await pool.query(
+              `DELETE FROM "reservacion_recursos" 
+           WHERE "idReservacion" = $1 AND "idRecurso" = ANY($2::int[])`,
+              [id, resourcesToDelete]
           );
         }
 
-        if (resourcesToAdd.length > 0) {
-          const insertPromises = resourcesToAdd.map((idRecurso) => {
-            return connection.query(
-              `INSERT INTO reservacion_recursos (idReservacion, idRecurso) VALUES (?, ?);`,
+        for (const idRecurso of resourcesToAdd) {
+          await pool.query(
+              `INSERT INTO "reservacion_recursos" ("idReservacion", "idRecurso") VALUES ($1, $2)`,
               [id, idRecurso]
-            );
-          });
-
-          await Promise.all(insertPromises);
+          );
         }
       }
 
-      if(estado){
-
-        const [reservationInfo] = await connection.query(
-          `SELECT idUsuario, idSala, idCubiculo FROM reservacion WHERE idReservacion = ?;`,
-          [id]
+      // Enviar email si la reservación fue aceptada
+      if (estado) {
+        const { rows: reservationInfo } = await pool.query(
+            `SELECT "idUsuario", "idSala", "idCubiculo" FROM "reservacion" WHERE "idReservacion" = $1`,
+            [id]
         );
 
-        const [userDetails] = await connection.query(
-          'SELECT Nombre, CorreoEmail FROM Usuario WHERE CedulaCarnet = ?;',
-          [reservationInfo[0].idUsuario]
+        const { idUsuario, idSala, idCubiculo } = reservationInfo[0];
+
+        const { rows: userDetails } = await pool.query(
+            `SELECT "Nombre", "CorreoEmail" FROM "Usuario" WHERE "CedulaCarnet" = $1`,
+            [idUsuario]
         );
 
-        const[cubicleDetails] = await connection.query(
-          'SELECT Nombre FROM Cubiculo WHERE idCubiculo = ?',
-          [reservationInfo[0].idCubiculo]
+        const { rows: cubicleDetails } = await pool.query(
+            `SELECT "Nombre" FROM "Cubiculo" WHERE "idCubiculo" = $1`,
+            [idCubiculo]
         );
 
-        const[roomDetails] = await connection.query(
-          'SELECT Nombre FROM Sala WHERE idSala = ?',
-          [reservationInfo[0].idSala]
+        const { rows: roomDetails } = await pool.query(
+            `SELECT "Nombre" FROM "Sala" WHERE "idSala" = $1`,
+            [idSala]
         );
-
-
 
         if (userDetails.length > 0) {
           const { Nombre, CorreoEmail } = userDetails[0];
 
-
-          const [reservation] = await connection.query(
-            `SELECT *
-         FROM reservacion WHERE idReservacion = ?;`,[id]
+          const { rows: reservationRows } = await pool.query(
+              `SELECT * FROM "reservacion" WHERE "idReservacion" = $1`,
+              [id]
           );
 
+          const reservationDetails = reservationRows[0];
 
-          const reservationDetails = reservation[0];
           const emailSubject = 'Reserva Aceptada';
-          const emailText = `
-      Hola ${Nombre},
-      
-      La reserva que solicitaste con los siguiente datos a sido aceptada!!
-      Fecha: ${reservationDetails.Fecha}
-      Hora de Inicio: ${reservationDetails.HoraInicio}
-      Hora de Fin: ${reservationDetails.HoraFin}
-      Sala: ${reservationInfo[0].idSala ? `Sala ${roomDetails[0].Nombre}` : 'N/A'}
-      Cubículo: ${reservationInfo[0].idCubiculo ? `Cubículo ${cubicleDetails[0].Nombre}` : 'N/A'}
-      Observaciones: ${reservationDetails.Observaciones || 'Ninguna'}
-    `;
-
           const formattedDate = format(new Date(reservationDetails.Fecha), 'EEEE, dd MMMM yyyy', { locale: es });
+          const emailText = `
+Hola ${Nombre},
+
+La reserva que solicitaste con los siguientes datos ha sido aceptada!!
+Fecha: ${reservationDetails.Fecha}
+Hora de Inicio: ${reservationDetails.HoraInicio}
+Hora de Fin: ${reservationDetails.HoraFin}
+Sala: ${idSala ? `Sala ${roomDetails[0].Nombre}` : 'N/A'}
+Cubículo: ${idCubiculo ? `Cubículo ${cubicleDetails[0].Nombre}` : 'N/A'}
+Observaciones: ${reservationDetails.Observaciones || 'Ninguna'}
+`;
 
           const emailHtml = `
 <div style="padding: 20px; background-color: #f4f4f4;">
@@ -1075,21 +1053,15 @@ export class reservationModel {
 </div>
 `;
 
-          sendEmail(
-            CorreoEmail,
-            emailSubject,
-            emailText,
-            emailHtml
-          );
+          sendEmail(CorreoEmail, emailSubject, emailText, emailHtml);
         }
-
-
       }
 
-      return 1;
+      return true;
     } catch (error) {
       throw new Error(error);
     }
   }
+
 
 }
