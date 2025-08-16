@@ -1,90 +1,106 @@
-import mysql from 'mysql2/promise';
-import { DBConfig } from '../../DBConfig.js';
+import pkg from 'pg';
+const { Pool } = pkg;
+import {DBConfig} from '../../DBConfig.js'
 
-const connection = await mysql.createConnection(DBConfig);
+const pool = new Pool(DBConfig);
 
 export class valorationModel {
 
-  // Obtener todas las valoraciones
   static async getAll() {
-    const [valoraciones] = await connection.query(
-      'SELECT * FROM valoracionreservas'
-    );
-    return valoraciones;
-  }
-
-  // Obtener una valoración por ID de encuesta
-  static async getById(idEncuesta ) {
-    const [valoracion] = await connection.query(
-      'SELECT * FROM valoracionreservas WHERE idEncuesta = ?',
-      [idEncuesta]
-    );
-
-    if (valoracion.length === 0) {
-      return null;
-    }
-
-    return valoracion[0];
-  }
-
-  static async getByRoomId(idSala ) {
-    const [valoracion] = await connection.query(
-      'SELECT * FROM valoracionreservas WHERE idSala = ?',
-      [idSala]
-    );
-
-    if (valoracion.length === 0) {
-      return null;
-    }
-
-    return valoracion[0];
-  }
-
-  static async getByCubicleId(idCubiculo ) {
-    const [valoracion] = await connection.query(
-      'SELECT * FROM valoracionreservas WHERE idCubiculo = ?',
-      [idCubiculo]
-    );
-
-    if (valoracion.length === 0) {
-      return null;
-    }
-
-    return valoracion[0];
-  }
-
-  // Crear una nueva valoración
-  static async create({ input }) {
-    const { idSala, idCubiculo, nota, observaciones } = input;
     try {
-
-      // Realizamos la inserción de la nueva valoración
-      await connection.query(
-        'INSERT INTO valoracionreservas (idSala, idCubiculo, Nota, Observaciones) VALUES (?, ?, ?, ?)',
-        [idSala, idCubiculo, nota, observaciones]
+      const { rows: valoraciones } = await pool.query(
+          'SELECT * FROM "valoracionreservas"'
       );
+      return valoraciones;
     } catch (error) {
       throw new Error(error);
     }
-
-    // Recuperar la valoración insertada
-    const [valoracion] = await connection.query(
-      'SELECT * FROM valoracionreservas WHERE idEncuesta = LAST_INSERT_ID()'
-    );
-
-    return valoracion[0].idEncuesta;
   }
 
-  // Eliminar una valoración por ID
+
+  static async getById(idEncuesta) {
+    try {
+      const { rows: valoracion } = await pool.query(
+          'SELECT * FROM "valoracionreservas" WHERE "idEncuesta" = $1',
+          [idEncuesta]
+      );
+
+      if (valoracion.length === 0) {
+        return null;
+      }
+
+      return valoracion[0];
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
+
+
+  static async getByRoomId(idSala) {
+    try {
+      const { rows: valoracion } = await pool.query(
+          'SELECT * FROM "valoracionreservas" WHERE "idSala" = $1',
+          [idSala]
+      );
+
+      if (valoracion.length === 0) {
+        return null;
+      }
+
+      return valoracion[0];
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
+
+
+  static async getByCubicleId(idCubiculo) {
+    try {
+      const { rows: valoracion } = await pool.query(
+          'SELECT * FROM "valoracionreservas" WHERE "idCubiculo" = $1',
+          [idCubiculo]
+      );
+
+      if (valoracion.length === 0) {
+        return null;
+      }
+
+      return valoracion[0];
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
+
+
+
+  static async create({ input }) {
+    const { idSala, idCubiculo, nota, observaciones } = input;
+    try {
+      // Insertar la nueva valoración y devolver el id generado
+      const { rows } = await pool.query(
+          `INSERT INTO "valoracionreservas" ("idSala", "idCubiculo", "Nota", "Observaciones") 
+       VALUES ($1, $2, $3, $4) 
+       RETURNING "idEncuesta";`,
+          [idSala, idCubiculo, nota, observaciones]
+      );
+
+      return rows[0].idEncuesta;
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
+
+
   static async delete(idEncuesta) {
     try {
-      await connection.query(
-        'DELETE FROM valoracionreservas WHERE idEncuesta = ?',
-        [idEncuesta]
+      await pool.query(
+          'DELETE FROM "valoracionreservas" WHERE "idEncuesta" = $1',
+          [idEncuesta]
       );
     } catch (error) {
       throw new Error('Error al eliminar la valoración');
     }
     return true;
   }
+
 }
