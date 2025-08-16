@@ -20,7 +20,7 @@ import * as path from "node:path";
 const app = express();
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     next();
 });
@@ -35,6 +35,8 @@ app.use('/cubicles', cubicleRouter);
 app.use('/resources', resourceRouter);
 app.use('/roles', roleRouter);
 app.use('/categories', categoryRouter);
+app.use('/cubicles', cubicleRouter);
+app.use('/resources', resourceRouter);
 app.use('/states', stateRouter);
 app.use('/users', userRouter);
 app.use('/assets', assetRouter);
