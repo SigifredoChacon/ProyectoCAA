@@ -29,7 +29,7 @@ export class StateModel {
 
   static async getById({ id }) {
       const { rows: states } = await pool.query(
-          'SELECT * FROM "Estado" WHERE "idEstado" = $1',
+          'SELECT * FROM "estado" WHERE "idEstado" = $1',
           [id]
       );
 
@@ -78,7 +78,7 @@ export class StateModel {
       }
 
       await pool.query(
-        'DELETE FROM "Estado" WHERE "idEstado" = $1',
+        'DELETE FROM "estado" WHERE "idEstado" = $1',
         [id]
       );
     } catch (error) {
@@ -94,7 +94,7 @@ export class StateModel {
 
     try {
       const { rows: duplicateState } = await pool.query(
-        'SELECT "Tipo" FROM "Estado" WHERE "Tipo" = $1',
+        'SELECT "Tipo" FROM "estado" WHERE "Tipo" = $1',
         [tipo]
       );
 
@@ -103,7 +103,7 @@ export class StateModel {
       }
 
       const { rowCount } = await pool.query(
-        `UPDATE "Estado"
+        `UPDATE "estado"
          SET "Tipo" = COALESCE($1, "Tipo")
          WHERE "idEstado" = $2`,
         [tipo, id]

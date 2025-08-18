@@ -213,7 +213,7 @@ export class applicationModel {
         const result = await pool.query(
           `UPDATE "solicitud"
              SET "Estado" = $1,
-                 "ArchivoSolicitud" = $2
+                 "archivoSolicitud" = $2
            WHERE "idSolicitud" = $3`,
           [estado, archivoSolicitud, id]
         );

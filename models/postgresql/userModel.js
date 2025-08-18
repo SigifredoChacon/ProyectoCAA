@@ -20,7 +20,7 @@ export class userModel {
                 u."Direccion",
                 u."Estado",
                 u."CorreoInstitucional",
-                r."nombre" AS "NombreRol",
+                r."Nombre" AS "NombreRol",
                 r."idRol" AS "idRol"
             FROM
                 "usuario" u
@@ -47,7 +47,7 @@ export class userModel {
                 u."Contrasena",
                 u."CedulaCarnet",
                 u."Estado",
-                r."nombre" AS "RolNombre"
+                r."Nombre" AS "RolNombre"
              FROM "usuario" u
              JOIN "rol" r ON u."idRol" = r."idRol"
              WHERE u."CorreoEmail" = $1 OR u."CorreoInstitucional" = $2;`,
@@ -188,7 +188,7 @@ export class userModel {
             }
 
             const [resultTelefono] = await pool.query(
-                `SELECT "telefono" FROM "usuario" WHERE "Telefono" = $1`,
+                `SELECT "Telefono" FROM "usuario" WHERE "Telefono" = $1`,
                 [telefono]
             );
             if (resultTelefono.length > 0) {
@@ -338,7 +338,7 @@ export class userModel {
             // Retornar el resultado del usuario actualizado
             const [updatedUser] = await pool.query(
                 `SELECT *
-             FROM "Usuario" WHERE "CedulaCarnet" = ?;`,
+             FROM "usuario" WHERE "CedulaCarnet" = ?;`,
                 [id]
             );
 

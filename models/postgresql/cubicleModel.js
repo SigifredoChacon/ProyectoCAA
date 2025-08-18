@@ -134,7 +134,7 @@ export class cubicleModel {
 
             await pool.query(
                 `UPDATE cubiculo
-             SET "Estado" = 0;`
+             SET "Estado" = false;`
             );
 
             const { rows: updatedCubicles } = await pool.query(
@@ -221,7 +221,7 @@ export class cubicleModel {
 
             await pool.query(
                 `UPDATE cubiculo
-             SET "Estado" = 1;`
+             SET "Estado" = true;`
             );
 
             const { rows: updatedCubicles } = await pool.query(

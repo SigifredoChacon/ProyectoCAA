@@ -32,7 +32,7 @@ export class roleModel {
 
         try {
             const { rows: existingRoles } = await pool.query(
-                'SELECT "nombre" FROM "rol" WHERE "Nombre" = $1',
+                'SELECT "Nombre" FROM "rol" WHERE "Nombre" = $1',
                 [nombre]
             );
 
@@ -81,7 +81,7 @@ export class roleModel {
         try {
             // Verificar duplicado
             const { rows: duplicate } = await pool.query(
-                'SELECT "nombre" FROM "rol" WHERE "Nombre" = $1',
+                'SELECT "Nombre" FROM "rol" WHERE "Nombre" = $1',
                 [nombre]
             );
 
