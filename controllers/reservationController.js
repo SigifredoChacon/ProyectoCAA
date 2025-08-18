@@ -1,11 +1,12 @@
-import {reservationModel} from '../models/mysql/reservationModel.js';
+import {reservationModel} from '../models/postgresql/reservationModel.js';
 import {validateReservation, validateReservationUpdate} from '../schemas/reservationSchema.js';
 import {sendEmail} from "../services/emailService.js";
 import {format} from "date-fns";
 import {es} from "date-fns/locale";
 import { DBConfig } from '../DBConfig.js'
-import mysql from "mysql2/promise";
-const connection = await mysql.createConnection(DBConfig)
+import pkg from 'pg';
+const { Pool } = pkg;
+const pool = new Pool(DBConfig);
 
 export class reservationController {
 
@@ -160,13 +161,13 @@ export class reservationController {
         return res.status(400).json({ message: 'Todos los campos son requeridos y deben ser válidos' });
       }
 
-      const[cubicleDetails] = await connection.query(
-          'SELECT Nombre FROM Cubiculo WHERE idCubiculo = ?',
+      const{ rows: cubicleDetails } = await pool.query(
+          'SELECT "Nombre" FROM cubiculo WHERE "idCubiculo" = $1',
           [idCubiculo]
       );
 
-      const[roomDetails] = await connection.query(
-          'SELECT Nombre FROM Sala WHERE idSala = ?',
+      const{ rows: roomDetails} = await pool.query(
+          'SELECT "Nombre" FROM sala WHERE "idSala" = $1',
           [idSala]
       );
 

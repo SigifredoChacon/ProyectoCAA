@@ -70,7 +70,7 @@ export class userModel {
     static async getById({ id }) {
         const { rows: users } = await pool.query(
             `SELECT *
-             FROM "Usuario"
+             FROM "usuario"
              WHERE "CedulaCarnet" = $1;`,
             [id]
         );
@@ -101,21 +101,21 @@ export class userModel {
         try {
             // Validar cédula
             const { rows: resultCedula } = await pool.query(
-                `SELECT "cedulaCarnet" FROM "usuario" WHERE "cedulaCarnet" = $1;`,
+                `SELECT "CedulaCarnet" FROM "usuario" WHERE "CedulaCarnet" = $1;`,
                 [cedulaCarnet]
             );
             if (resultCedula.length > 0) throw new Error('Usuario existente con esa cédula');
 
             // Validar correo
             const { rows: resultEmail } = await pool.query(
-                `SELECT "correoEmail" FROM "usuario" WHERE "correoEmail" = $1;`,
+                `SELECT "CorreoEmail" FROM "usuario" WHERE "CorreoEmail" = $1;`,
                 [correoEmail]
             );
             if (resultEmail.length > 0) throw new Error('Usuario existente con ese correo');
 
             // Validar teléfono
             const { rows: resultTelefono } = await pool.query(
-                `SELECT "telefono" FROM "usuario" WHERE "telefono" = $1;`,
+                `SELECT "Telefono" FROM "usuario" WHERE "Telefono" = $1;`,
                 [telefono]
             );
             if (resultTelefono.length > 0) throw new Error('Usuario existente con ese teléfono');
@@ -180,7 +180,7 @@ export class userModel {
 
         try {
             const [resultEmail] = await pool.query(
-                `SELECT "correoEmail" FROM "usuario" WHERE "CorreoEmail" = $1`,
+                `SELECT "CorreoEmail" FROM "usuario" WHERE "CorreoEmail" = $1`,
                 [correoEmail]
             );
             if (resultEmail.length > 0) {
@@ -201,7 +201,7 @@ export class userModel {
             }
 
             const [result] = await pool.query(
-                `UPDATE "Usuario"
+                `UPDATE "usuario"
                  SET "Nombre" = COALESCE($1, "Nombre"),
                      "CorreoEmail" = COALESCE($2, "CorreoEmail"),
                      "CorreoInstitucional" = COALESCE($3, "CorreoInstitucional"),
@@ -235,9 +235,9 @@ export class userModel {
         try {
 
             const userResult = await pool.query(
-                        `SELECT "Usuario"."Nombre", "Usuario"."CorreoEmail"
-                         FROM "Usuario"
-                         INNER JOIN "Rol" ON "Usuario"."idRol" = "Rol"."idRol"
+                        `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
+                         FROM "usuario"
+                         INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
                          WHERE "CedulaCarnet" = $1;`,
                         [id]
                     );
@@ -268,7 +268,7 @@ export class userModel {
 
             // Actualizar la contraseña en la base de datos
             const updateResult = await pool.query(
-                 `UPDATE "Usuario"
+                 `UPDATE "usuario"
                  SET "Contrasena" = $1
                  WHERE "CedulaCarnet" = $2;`,
                  [hashedPassword, id]

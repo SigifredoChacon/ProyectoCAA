@@ -1,11 +1,11 @@
-import { reservationModel } from '../models/mysql/reservationModel.js';
-import { userModel } from "../models/mysql/userModel.js";
+import { reservationModel } from '../models/postgresql/reservationModel.js';
+import { userModel } from "../models/postgresql/userModel.js";
 import { sendEmail } from './emailService.js';
 import moment from 'moment-timezone';
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import {cubicleModel} from "../models/mysql/cubicleModel.js";
-import {RoomModel} from "../models/mysql/roomModel.js";
+import {cubicleModel} from "../models/postgresql/cubicleModel.js";
+import {RoomModel} from "../models/postgresql/roomModel.js";
 
 export async function notificationService() {
     const threeDaysFromNow = moment().tz('America/Costa_Rica').add(3, 'days').format('YYYY-MM-DD');

@@ -140,7 +140,7 @@ export class RoomModel {
             // Actualizar estado de todas las salas a 0
             await pool.query(
                 `UPDATE sala
-             SET "Estado" = 0;`
+             SET "Estado" = false;`
             );
 
             // Obtener todas las salas actualizadas
@@ -230,7 +230,7 @@ export class RoomModel {
             // Actualizar estado de todas las salas a 1
             await pool.query(
                 `UPDATE sala
-             SET "Estado" = 1;`
+             SET "Estado" = true;`
             );
 
             // Obtener todas las salas actualizadas

@@ -1,4 +1,4 @@
-import { valorationModel } from '../models/mysql/valorationModel.js';
+import { valorationModel } from '../models/postgresql/valorationModel.js';
 
 export class valorationController {
 

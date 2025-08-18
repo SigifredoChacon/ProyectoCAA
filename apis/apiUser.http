@@ -15,11 +15,11 @@ Content-Type: application/json
 
 {
   "cedulaCarnet": 2021152632,
-  "nombre": "Brandon",
-  "correoEmail": "brandonerv438@gmail.com",
-  "contrasena": "123456",
+  "nombre": "mariano",
+  "correoEmail": "mariano21803@gmail.com",
+  "contrasena": "12345",
   "telefono": "88578033",
-  "idRol": 2
+  "idRol": 1
 }
 
 ###

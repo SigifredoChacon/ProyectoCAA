@@ -18,7 +18,7 @@ export class reservationModel {
     const { rows: totalCountResult } = await pool.query(
         `SELECT COUNT(*) AS "total"
          FROM "reservacion"
-         WHERE "Estado" = 1;`
+         WHERE "Estado" = true;`
     );
 
     const totalReservations = parseInt(totalCountResult[0].total, 10);
@@ -36,7 +36,7 @@ export class reservationModel {
            r."idUsuario",
            r."EncuestaCompletada",
            rr."idRecurso",
-           rec."nombre" AS "NombreRecurso",
+           rec."Nombre" AS "NombreRecurso",
            r."Observaciones",
            r."Refrigerio"
          FROM
@@ -46,7 +46,7 @@ export class reservationModel {
              LEFT JOIN
            "recursos" rec ON rr."idRecurso" = rec."idRecursos"
          WHERE
-           r."Estado" = 1
+           r."Estado" = true
          ORDER BY r."idReservacion" DESC
            LIMIT $1 OFFSET $2;`,
         [itemsPerPage, offset]
@@ -66,7 +66,7 @@ export class reservationModel {
         `SELECT
            rr."idReservacion",
            rr."idRecurso",
-           rec."nombre" AS "NombreRecurso"
+           rec."Nombre" AS "NombreRecurso"
          FROM
            "reservacion_recursos" rr
              LEFT JOIN
@@ -113,14 +113,14 @@ export class reservationModel {
            r."Observaciones",
            r."Refrigerio",
            rr."idRecurso",
-           rec."nombre" AS "NombreRecurso"
+           rec."Nombre" AS "NombreRecurso"
          FROM
            "reservacion" r
              LEFT JOIN
            "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
              LEFT JOIN
            "recursos" rec ON rr."idRecurso" = rec."idRecursos"
-         WHERE r."Estado" = 0;`
+         WHERE r."Estado" = false;`
     );
 
     const reservationMap = {};
@@ -179,7 +179,7 @@ export class reservationModel {
            r."idCubiculo",
            r."idUsuario",
            rr."idRecurso",
-           rec."nombre" AS "NombreRecurso"
+           rec."Nombre" AS "NombreRecurso"
          FROM
            "reservacion" r
              LEFT JOIN
@@ -242,7 +242,7 @@ export class reservationModel {
            r."idCubiculo",
            r."idUsuario",
            rr."idRecurso",
-           rec."nombre" AS "NombreRecurso"
+           rec."Nombre" AS "NombreRecurso"
          FROM
            "reservacion" r
              LEFT JOIN
@@ -306,7 +306,7 @@ export class reservationModel {
            r."idCubiculo",
            r."idUsuario",
            rr."idRecurso",
-           rec."nombre" AS "NombreRecurso"
+           rec."Nombre" AS "NombreRecurso"
          FROM
            "reservacion" r
              LEFT JOIN
@@ -370,7 +370,7 @@ export class reservationModel {
            r."idCubiculo",
            r."idUsuario",
            rr."idRecurso",
-           rec."nombre" AS "NombreRecurso"
+           rec."Nombre" AS "NombreRecurso"
          FROM
            "reservacion" r
              LEFT JOIN
@@ -489,7 +489,7 @@ export class reservationModel {
          FROM
            "reservacion"
          WHERE
-           "idUsuario" = $1 AND "EncuestaCompletada" = 0;`,
+           "idUsuario" = $1 AND "EncuestaCompletada" = false;`,
         [id]
     );
 
@@ -504,7 +504,7 @@ export class reservationModel {
     const { rows: totalCountResult } = await pool.query(
         `SELECT COUNT(*) as total
          FROM "reservacion"
-         WHERE "Estado" = 1 AND "idUsuario" = $1;`,
+         WHERE "Estado" = true AND "idUsuario" = $1;`,
         [userId]
     );
 
@@ -523,7 +523,7 @@ export class reservationModel {
            r."idUsuario",
            r."EncuestaCompletada",
            rr."idRecurso",
-           rec."nombre" AS "NombreRecurso",
+           rec."Nombre" AS "NombreRecurso",
            r."Observaciones",
            r."Refrigerio"
          FROM
@@ -533,7 +533,7 @@ export class reservationModel {
              LEFT JOIN
            "recursos" rec ON rr."idRecurso" = rec."idRecursos"
          WHERE
-           r."Estado" = 1 AND r."idUsuario" = $1
+           r."Estado" = true AND r."idUsuario" = $1
          ORDER BY r."idReservacion" DESC
            LIMIT $2 OFFSET $3;`,
         [userId, itemsPerPage, offset]
@@ -553,7 +553,7 @@ export class reservationModel {
         `SELECT
            rr."idReservacion",
            rr."idRecurso",
-           rec."nombre" AS "NombreRecurso"
+           rec."Nombre" AS "NombreRecurso"
          FROM
            "reservacion_recursos" rr
              LEFT JOIN
@@ -622,18 +622,18 @@ export class reservationModel {
 
       // Obtener datos de usuario
       const { rows: userDetails } = await pool.query(
-          `SELECT "Nombre", "CorreoEmail" FROM "Usuario" WHERE "CedulaCarnet" = $1;`,
+          `SELECT "Nombre", "CorreoEmail" FROM "usuario" WHERE "CedulaCarnet" = $1;`,
           [idUsuario]
       );
 
       // Obtener detalles de cubículo y sala
       const { rows: cubicleDetails } = await pool.query(
-          `SELECT "Nombre" FROM "Cubiculo" WHERE "idCubiculo" = $1;`,
+          `SELECT "Nombre" FROM "cubiculo" WHERE "idCubiculo" = $1;`,
           [idCubiculo]
       );
 
       const { rows: roomDetails } = await pool.query(
-          `SELECT "Nombre" FROM "Sala" WHERE "idSala" = $1;`,
+          `SELECT "Nombre" FROM "sala" WHERE "idSala" = $1;`,
           [idSala]
       );
 
@@ -785,17 +785,17 @@ Observaciones: ${observaciones || 'Ninguna'}
       if (reservation.Estado === 0) {
 
         const { rows: userDetails } = await pool.query(
-            `SELECT "Nombre", "CorreoEmail" FROM "Usuario" WHERE "CedulaCarnet" = $1;`,
+            `SELECT "Nombre", "CorreoEmail" FROM "usuario" WHERE "CedulaCarnet" = $1;`,
             [reservation.idUsuario]
         );
 
         const { rows: cubicleDetails } = await pool.query(
-            `SELECT "Nombre" FROM "Cubiculo" WHERE "idCubiculo" = $1;`,
+            `SELECT "Nombre" FROM "cubiculo" WHERE "idCubiculo" = $1;`,
             [reservation.idCubiculo]
         );
 
         const { rows: roomDetails } = await pool.query(
-            `SELECT "Nombre" FROM "Sala" WHERE "idSala" = $1;`,
+            `SELECT "Nombre" FROM "sala" WHERE "idSala" = $1;`,
             [reservation.idSala]
         );
 
@@ -966,7 +966,7 @@ Observaciones: ${reservationDetails.Observaciones || 'Ninguna'}
         const { idUsuario, idSala, idCubiculo } = reservationInfo[0];
 
         const { rows: userDetails } = await pool.query(
-            `SELECT "Nombre", "CorreoEmail" FROM "Usuario" WHERE "CedulaCarnet" = $1`,
+            `SELECT "Nombre", "CorreoEmail" FROM "usuario" WHERE "CedulaCarnet" = $1`,
             [idUsuario]
         );
 

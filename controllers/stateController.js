@@ -1,6 +1,6 @@
-import {StateModel} from '../models/mysql/stateModel.js'
+import {StateModel} from '../models/postgresql/stateModel.js'
 import{validateState, validateStateUpdate} from '../schemas/stateSchema.js'
-import {roleModel} from "../models/mysql/roleModel.js";
+import {roleModel} from "../models/postgresql/roleModel.js";
 
 export class StateController {
 

@@ -1,4 +1,4 @@
-import {roleModel} from '../models/mysql/roleModel.js';
+import {roleModel} from '../models/postgresql/roleModel.js';
 import {validateRole, validateRoleUpdate} from '../schemas/roleSchema.js';
 export class roleController {
 

@@ -1,4 +1,4 @@
-import {assetModel} from '../models/mysql/assetModel.js';
+import {assetModel} from '../models/postgresql/assetModel.js';
 import {validateAsset, validateAssetUpdate} from '../schemas/assetSchema.js';
 export class assetController {
 

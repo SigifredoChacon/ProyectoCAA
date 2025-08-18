@@ -1,9 +1,9 @@
-import { applicationModel } from '../models/mysql/applicationModel.js';
+import { applicationModel } from '../models/postgresql/applicationModel.js';
 import { validateApplication, validateApplicationUpdate } from '../schemas/applicationSchema.js';
 import multer from 'multer';
-import {userModel} from "../models/mysql/userModel.js";
+import {userModel} from "../models/postgresql/userModel.js";
 import {sendEmail} from "../services/emailService.js";
-import {assetModel} from "../models/mysql/assetModel.js";
+import {assetModel} from "../models/postgresql/assetModel.js";
 import { fileURLToPath } from 'url'
 import path from 'path'
 import fs from 'fs'

@@ -1,4 +1,4 @@
-import {userModel} from '../models/mysql/userModel.js';
+import {userModel} from '../models/postgresql/userModel.js';
 import {validateUser, validateUserUpdate} from '../schemas/userSchema.js';
 import jwt from 'jsonwebtoken';
 import {sendEmail} from "../services/emailService.js";
