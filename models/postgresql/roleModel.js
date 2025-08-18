@@ -1,126 +1,124 @@
-import mysql from 'mysql2/promise'
-
-
-
+import pkg from 'pg';
+const { Pool } = pkg;
 import { DBConfig } from '../../DBConfig.js'
 
-const connection = await mysql.createConnection(DBConfig)
+const pool = new Pool(DBConfig);
 
 export class roleModel {
 
-    static async getAll () {
-        const [roles] = await connection.query(
-            'SELECT * FROM rol',
-        )
-        return roles
+    static async getAll() {
+        const { rows: roles } = await pool.query(
+            'SELECT * FROM "rol"'
+        );
+        return roles;
     }
 
-    static async getById ({ id }) {
-        const [role] = await connection.query(
-            'SELECT * FROM rol WHERE idRol = ?',
+    static async getById({ id }) {
+        const { rows: roles } = await pool.query(
+            'SELECT * FROM "rol" WHERE "idRol" = $1',
             [id]
-        )
-        if(role.length === 0) {
-            return null
+        );
+
+        if (roles.length === 0) {
+            return null;
         }
 
-        return role[0]
+        return roles[0];
     }
 
-    static async create ({ input }) {
-        const {
-            nombre,
-        } = input
+
+    static async create({ input }) {
+        const { nombre } = input;
+
         try {
-
-            const [result] = await connection.query(
-                'SELECT nombre FROM rol WHERE Nombre = ?',
+            const { rows: existingRoles } = await pool.query(
+                'SELECT "nombre" FROM "rol" WHERE "Nombre" = $1',
                 [nombre]
-            )
+            );
 
-            if (result.length > 0) {
-                return false
+            if (existingRoles.length > 0) {
+                return false;
             }
 
-            await connection.query(
-                'INSERT INTO rol (Nombre) VALUES (?)',
+            const { rows } = await pool.query(
+                'INSERT INTO "rol" ("Nombre") VALUES ($1) RETURNING *',
                 [nombre]
-            )
-        }
-        catch (error) {
-            throw new Error("Error al crear el rol")
-        }
+            );
 
-        const [role] = await connection.query(
-            `SELECT *
-             FROM rol WHERE idRol = LAST_INSERT_ID();`
-        )
-        return role[0]
+            return rows[0];
+        } catch (error) {
+            throw new Error("Error al crear el rol");
+        }
     }
 
-    static async delete ({ id }) {
-        try {
-            const [result] = await connection.query(
-                'SELECT * FROM usuario WHERE idRol = ?',
-                [id]
-            )
 
-            if(result.length>0){
-                return false
+    static async delete({ id }) {
+        try {
+            const { rows } = await pool.query(
+                'SELECT * FROM "usuario" WHERE "idRol" = $1',
+                [id]
+            );
+
+            if (rows.length > 0) {
+                return false;
             }
 
-            await connection.query(
-                'DELETE FROM rol WHERE idRol = ?',
+            await pool.query(
+                'DELETE FROM "rol" WHERE "idRol" = $1',
                 [id]
-            )
+            );
+
+            return true;
+        } catch (error) {
+            throw new Error("Error al eliminar el rol");
         }
-        catch (error) {
-            throw new Error("Error al eliminar el rol")
-        }
-        return true
     }
+
 
     static async update({ id, input }) {
-        const {
-            nombre
-        } = input
+        const { nombre } = input;
 
         try {
-
-            const [duplicate] = await connection.query(
-                'SELECT nombre FROM rol WHERE Nombre = ?',
+            // Verificar duplicado
+            const { rows: duplicate } = await pool.query(
+                'SELECT "nombre" FROM "rol" WHERE "Nombre" = $1',
                 [nombre]
-            )
+            );
+
             if (duplicate.length > 0) {
-                return false
+                return false;
             }
 
-            const [result] = await connection.query(
-                `UPDATE rol
-       SET Nombre = COALESCE(?, Nombre)
-       WHERE idRol = ?;`,
+            // Actualizar el rol
+            const { rowCount } = await pool.query(
+                `UPDATE "rol"
+                 SET "Nombre" = COALESCE($1, "Nombre")
+                 WHERE "idRol" = $2`,
                 [nombre, id]
             );
-            if (result.affectedRows === 0) {
-                throw new Error('No se encontro el rol con ese id');
+
+            if (rowCount === 0) {
+                throw new Error('No se encontró el rol con ese id');
             }
 
-            const [updatedRole] = await connection.query(
-                `SELECT *
-                    FROM rol WHERE idRol = ?;`,
+            // Obtener el rol actualizado
+            const { rows: updatedRole } = await pool.query(
+                'SELECT * FROM rol WHERE idRol = $1',
                 [id]
             );
 
             return updatedRole[0];
+
         } catch (error) {
-            throw new Error("Error al actualizar el Rol");
+            throw new Error("Error al actualizar el rol");
         }
     }
 
+
     static async getByRoleName({ nombre }) {
-        const [role] = await connection.query(
-          'SELECT * FROM rol WHERE LOWER(Nombre) = LOWER(?)',
-          [nombre]
+        const { rows: role } = await pool.query(
+            'SELECT * FROM rol WHERE LOWER("Nombre") = LOWER($1)',
+            [nombre]
         );
 
         if (role.length === 0) {
@@ -129,5 +127,6 @@ export class roleModel {
 
         return role[0];
     }
+
 
 }
