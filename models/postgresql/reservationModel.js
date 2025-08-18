@@ -977,12 +977,12 @@ Observaciones: ${reservationDetails.Observaciones || 'Ninguna'}
         );
 
         const { rows: cubicleDetails } = await pool.query(
-            `SELECT "Nombre" FROM "Cubiculo" WHERE "idCubiculo" = $1`,
+            `SELECT "Nombre" FROM "cubiculo" WHERE "idCubiculo" = $1`,
             [idCubiculo]
         );
 
         const { rows: roomDetails } = await pool.query(
-            `SELECT "Nombre" FROM "Sala" WHERE "idSala" = $1`,
+            `SELECT "Nombre" FROM "sala" WHERE "idSala" = $1`,
             [idSala]
         );
 

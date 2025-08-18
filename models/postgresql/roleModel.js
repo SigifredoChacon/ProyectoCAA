@@ -103,7 +103,7 @@ export class roleModel {
 
             // Obtener el rol actualizado
             const { rows: updatedRole } = await pool.query(
-                'SELECT * FROM rol WHERE idRol = $1',
+                'SELECT * FROM rol WHERE "idRol" = $1',
                 [id]
             );
 

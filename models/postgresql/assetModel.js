@@ -87,7 +87,7 @@ export class assetModel {
                      JOIN
                  "categoria" c ON a."idCategoria" = c."idCategoria"
              WHERE
-                 a."idCategoria" = $1 AND a."Condicion" = 0
+                 a."idCategoria" = $1 AND a."Condicion" = false
                  LIMIT 1`,
             [categoryId[0].idCategoria]
         );

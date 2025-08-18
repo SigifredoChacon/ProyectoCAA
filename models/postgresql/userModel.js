@@ -179,7 +179,7 @@ export class userModel {
         } = input;
 
         try {
-            const [resultEmail] = await pool.query(
+            const { rows:resultEmail } = await pool.query(
                 `SELECT "CorreoEmail" FROM "usuario" WHERE "CorreoEmail" = $1`,
                 [correoEmail]
             );
@@ -187,7 +187,7 @@ export class userModel {
                 throw new Error('Usuario existente con ese correo');
             }
 
-            const [resultTelefono] = await pool.query(
+            const {rows:resultTelefono} = await pool.query(
                 `SELECT "Telefono" FROM "usuario" WHERE "Telefono" = $1`,
                 [telefono]
             );
@@ -200,7 +200,7 @@ export class userModel {
                 hashedPassword = await bcrypt.hash(contrasena, 10);
             }
 
-            const [result] = await pool.query(
+            const { rows:result} = await pool.query(
                 `UPDATE "usuario"
                  SET "Nombre" = COALESCE($1, "Nombre"),
                      "CorreoEmail" = COALESCE($2, "CorreoEmail"),
@@ -215,11 +215,12 @@ export class userModel {
                 [nombre, correoEmail, correoInstitucional, hashedPassword, telefono, telefono2, direccion, estado, idRol, id]
             );
 
+
             if (result.rowCount === 0) {
                 throw new Error('No se encontró el usuario con ese id');
             }
 
-            const [updatedUser] = await pool.query(
+            const {rows:updatedUser} = await pool.query(
                 `SELECT * FROM "usuario" WHERE "CedulaCarnet" = $1;`,
                 [id]
             );
