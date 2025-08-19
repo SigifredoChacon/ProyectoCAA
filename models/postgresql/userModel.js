@@ -20,7 +20,7 @@ export class userModel {
                 u."Direccion",
                 u."Estado",
                 u."CorreoInstitucional",
-                r."Nombre" AS "NombreRol",
+                r."nombre" AS "NombreRol",
                 r."idRol" AS "idRol"
             FROM
                 "usuario" u
@@ -47,7 +47,7 @@ export class userModel {
                 u."Contrasena",
                 u."CedulaCarnet",
                 u."Estado",
-                r."Nombre" AS "RolNombre"
+                r."nombre" AS "RolNombre"
              FROM "usuario" u
              JOIN "rol" r ON u."idRol" = r."idRol"
              WHERE u."CorreoEmail" = $1 OR u."CorreoInstitucional" = $2;`,
@@ -200,7 +200,7 @@ export class userModel {
                 hashedPassword = await bcrypt.hash(contrasena, 10);
             }
 
-            const { rows:result} = await pool.query(
+            const { rowCount} = await pool.query(
                 `UPDATE "usuario"
                  SET "Nombre" = COALESCE($1, "Nombre"),
                      "CorreoEmail" = COALESCE($2, "CorreoEmail"),
@@ -216,7 +216,7 @@ export class userModel {
             );
 
 
-            if (result.rowCount === 0) {
+            if (rowCount === 0) {
                 throw new Error('No se encontró el usuario con ese id');
             }
 
@@ -235,7 +235,7 @@ export class userModel {
     static async updatePassword({ id }) {
         try {
 
-            const userResult = await pool.query(
+            const {rows: userResult} = await pool.query(
                         `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
                          FROM "usuario"
                          INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
@@ -243,7 +243,7 @@ export class userModel {
                         [id]
                     );
 
-            const userDetails = userResult.rows;
+            const userDetails = userResult;
 
             if (userDetails.length === 0) {
                  throw new Error('No se encontró el usuario con ese id');
@@ -268,14 +268,14 @@ export class userModel {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
 
             // Actualizar la contraseña en la base de datos
-            const updateResult = await pool.query(
+            const {rowCount} = await pool.query(
                  `UPDATE "usuario"
                  SET "Contrasena" = $1
                  WHERE "CedulaCarnet" = $2;`,
                  [hashedPassword, id]
             );
 
-            if (updateResult.rowCount === 0) {
+            if (rowCount === 0) {
                 throw new Error('No se encontró el usuario con ese id');
             }
 
@@ -337,13 +337,13 @@ export class userModel {
             });
 
             // Retornar el resultado del usuario actualizado
-            const [updatedUser] = await pool.query(
+            const {rows: updatedUser } = await pool.query(
                 `SELECT *
              FROM "usuario" WHERE "CedulaCarnet" = ?;`,
                 [id]
             );
 
-            return updatedUserResult.rows[0];
+            return updatedUser[0];
         } catch (error) {
             return error.message;
         }

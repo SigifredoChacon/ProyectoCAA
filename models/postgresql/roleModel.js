@@ -32,7 +32,7 @@ export class roleModel {
 
         try {
             const { rows: existingRoles } = await pool.query(
-                'SELECT "Nombre" FROM "rol" WHERE "Nombre" = $1',
+                'SELECT "nombre" FROM "rol" WHERE "nombre" = $1',
                 [nombre]
             );
 
@@ -41,7 +41,7 @@ export class roleModel {
             }
 
             const { rows } = await pool.query(
-                'INSERT INTO "rol" ("Nombre") VALUES ($1) RETURNING *',
+                'INSERT INTO "rol" ("nombre") VALUES ($1) RETURNING *',
                 [nombre]
             );
 
@@ -81,7 +81,7 @@ export class roleModel {
         try {
             // Verificar duplicado
             const { rows: duplicate } = await pool.query(
-                'SELECT "Nombre" FROM "rol" WHERE "Nombre" = $1',
+                'SELECT "nombre" FROM "rol" WHERE "nombre" = $1',
                 [nombre]
             );
 
@@ -92,7 +92,7 @@ export class roleModel {
             // Actualizar el rol
             const { rowCount } = await pool.query(
                 `UPDATE "rol"
-                 SET "Nombre" = COALESCE($1, "Nombre")
+                 SET "nombre" = COALESCE($1, "nombre")
                  WHERE "idRol" = $2`,
                 [nombre, id]
             );
