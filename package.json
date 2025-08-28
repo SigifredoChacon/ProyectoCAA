@@ -1,6 +1,10 @@
 {
   "name": "proyectoreservascaa",
   "version": "1.0.0",
+  "engines": {
+    "node": "^24.1.0",
+    "npm": "^11.3.0"
+  },
   "main": "app.js",
   "type": "module",
   "scripts": {
