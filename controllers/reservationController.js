@@ -106,7 +106,6 @@ export class reservationController {
   }
   static async getByUserIdComplete(req, res) {
     const {id} = req.params;
-    console.log(id)
     const reservations = await reservationModel.getByUserIdCompleted({id})
     if(reservations.length > 0) return res.json(reservations)
     res.status(404).json({message: 'No hay reservaciones con encuesta faltante'})
