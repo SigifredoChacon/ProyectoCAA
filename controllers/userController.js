@@ -66,7 +66,7 @@ export class userController {
 
         const user = await userModel.login({input: req.body})
 
-        if(!user) return res.status(404).json({message: 'Credenciales incorrectas'})
+        if(!user) return res.status(409).json({message: 'Credenciales incorrectas'})
 
         if(user.Estado === 1){
             return res.status(403).json({message: 'Su cuenta se encuentra bloqueada, comuniquese con la administración'})

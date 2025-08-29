@@ -154,12 +154,11 @@ export class RoomModel {
                 `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
                  FROM "usuario"
                           INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
-                 WHERE "rol"."Nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
+                 WHERE "rol"."nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
             );
 
 
             const emailSubject = 'Bloqueo de Salas';
-
 
             userDetails.forEach(({ Nombre, CorreoEmail }) => {
                 const emailText = `
@@ -244,7 +243,7 @@ export class RoomModel {
                 `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
                  FROM "usuario"
                           INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
-                 WHERE "rol"."Nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
+                 WHERE "rol"."nombre" IN ('Administrador', 'Profesor', 'Estudiante');`
             );
 
             const emailSubject = 'Reactivación de reservas de Salas';

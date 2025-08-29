@@ -509,8 +509,14 @@ export class reservationModel {
     // Contar el número total de reservaciones
     const { rows: totalCountResult } = await pool.query(
         `SELECT COUNT(*) as total
-         FROM "reservacion"
-         WHERE "Estado" = true AND "idUsuario" = $1;`,
+         FROM
+             "reservacion" r
+                 LEFT JOIN
+             "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
+                 LEFT JOIN
+             "recursos" rec ON rr."idRecurso" = rec."idRecursos"
+         WHERE
+             r."Estado" = true AND r."idUsuario" = $1;`,
         [userId]
     );
 

@@ -146,7 +146,7 @@ export class cubicleModel {
                 `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
                  FROM "usuario"
                           INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
-                 WHERE "rol"."Nombre" IN ('Administrador', 'Profesor');`
+                 WHERE "rol"."nombre" IN ('Administrador', 'Profesor');`
             );
 
             const emailSubject = 'Bloqueo de cubículos';
@@ -233,7 +233,7 @@ export class cubicleModel {
                 `SELECT "usuario"."Nombre", "usuario"."CorreoEmail"
                  FROM "usuario"
                           INNER JOIN "rol" ON "usuario"."idRol" = "rol"."idRol"
-                 WHERE "rol"."Nombre" IN ('Administrador', 'Profesor');`
+                 WHERE "rol"."nombre" IN ('Administrador', 'Profesor');`
             );
 
 

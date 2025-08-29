@@ -7,7 +7,7 @@ POST http://localhost:3000/roles
 Content-Type: application/json
 
 {
-  "nombre": "AdministradorSolicitudes"
+  "nombre": "Profesor"
 }
 
 ###

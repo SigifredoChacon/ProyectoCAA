@@ -117,7 +117,7 @@ export class roleModel {
 
     static async getByRoleName({ nombre }) {
         const { rows: role } = await pool.query(
-            'SELECT * FROM rol WHERE LOWER("Nombre") = LOWER($1)',
+            'SELECT * FROM rol WHERE LOWER("nombre") = LOWER($1)',
             [nombre]
         );
 
