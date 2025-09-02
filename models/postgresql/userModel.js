@@ -47,7 +47,7 @@ export class userModel {
                 u."Contrasena",
                 u."CedulaCarnet",
                 u."Estado",
-                r."Nombre" AS "RolNombre"
+                r."nombre" AS "RolNombre"
              FROM "usuario" u
              JOIN "rol" r ON u."idRol" = r."idRol"
              WHERE u."CorreoEmail" = $1 OR u."CorreoInstitucional" = $2;`,
