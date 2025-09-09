@@ -2,6 +2,10 @@ import {userModel} from '../models/postgresql/userModel.js';
 import {validateUser, validateUserUpdate} from '../schemas/userSchema.js';
 import jwt from 'jsonwebtoken';
 import {sendEmail} from "../services/emailService.js";
+import dotenv from 'dotenv';
+import {roleModel} from "../models/postgresql/roleModel.js";
+import {roleController as rolModel} from "./roleController.js";
+dotenv.config();
 
 export class userController {
 
@@ -10,27 +14,75 @@ export class userController {
         res.json(users)
     }
     static async getById(req, res) {
-        const {id} = req.params
-        const user = await userModel.getById({id})
-        if(user) return res.json(user)
-        res.status(404).json({message: 'Usuario no encontrado'})
+        try {
+            const { id } = req.params;
+            const requester = req.user;
+
+
+            if (requester.role === "Administrador" || requester.role === "AdministradorReservaciones") {
+                const user = await userModel.getById({id});
+                return res.json(user);
+            }
+
+
+            if (parseInt(requester.id) !== parseInt(id)) {
+                return res.status(403).json({ message: "No tienes permiso para ver este usuario" });
+            }
+
+            const user = await userModel.getById({id});
+            res.json(user);
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ message: "Error al obtener el usuario" });
+        }
     }
 
-    // En el controlador userController.js
+
     static async create(req, res) {
         const result = validateUser(req.body);
-        if (result.success === false) {
+        if (!result.success) {
             return res.status(400).json({ message: JSON.parse(result.error.message) });
+        }
+
+        const role = await roleModel.getById({ id: req.body.idRol });
+        if (!role) {
+            return res.status(400).json({ message: "Rol no válido" });
         }
 
         const newUser = await userModel.create({ input: req.body });
 
-        // Si el modelo retorna un mensaje de error, responde con un 409 (conflicto) y el mensaje adecuado
-        if (typeof newUser === 'string') {
+        if (typeof newUser === "string") {
             return res.status(409).json({ message: newUser });
         }
 
-        // Si la creación fue exitosa, responde con el nuevo usuario creado
+        res.status(201).json(newUser);
+    }
+
+    static async register(req, res) {
+        const result = validateUser(req.body);
+        if (!result.success) {
+            return res.status(400).json({ message: JSON.parse(result.error.message) });
+        }
+
+
+        const role = await roleModel.getById({ id: req.body.idRol });
+
+        if (!role) {
+            return res.status(400).json({ message: "Rol no válido" });
+        }
+
+
+        const allowedRoles = ["Estudiante", "Profesor"];
+        if (!allowedRoles.includes(role.nombre)) {
+            return res.status(403).json({ message: "No tienes permisos para registrarte con este rol" });
+        }
+
+        const newUser = await userModel.create({input: req.body });
+
+        if (typeof newUser === "string") {
+            return res.status(409).json({ message: newUser });
+        }
+
         res.status(201).json(newUser);
     }
 
@@ -50,16 +102,41 @@ export class userController {
         }
 
         const { id } = req.params;
-        const updatedUser = await userModel.update({ id, input: req.body });
+        const requester = req.user;
+        if (parseInt(requester.id) === parseInt(id)) {
 
-        // Si el modelo retorna un mensaje de error, envíalo como respuesta
-        if (typeof updatedUser === 'string') {
-            // Responde con el mensaje de error específico
-            return res.status(409).json({ message: updatedUser });
+            if (req.body.idRol !== undefined || req.body.estado !== undefined) {
+                return res.status(403).json({ message: "No puedes modificar tu rol ni tu estado" });
+            }
+
+            const updatedUser = await userModel.update({ id, input: req.body });
+            if (typeof updatedUser === "string") {
+                return res.status(409).json({ message: updatedUser });
+            }
+            return res.json({ message: "Usuario actualizado correctamente" });
         }
 
-        // Si no hubo errores, envía una respuesta de éxito
-        return res.json({ message: 'Usuario actualizado correctamente' });
+
+        if (["Administrador", "AdministradorReservaciones"].includes(requester.role)) {
+
+            const { idRol, estado } = req.body;
+            const allowedUpdates = {};
+
+            if (idRol !== undefined) allowedUpdates.idRol = idRol;
+            if (estado !== undefined) allowedUpdates.estado = estado;
+
+            if (Object.keys(allowedUpdates).length === 0) {
+                return res.status(400).json({ message: "Solo puedes actualizar rol o estado de otros usuarios" });
+            }
+
+            const updatedUser = await userModel.update({ id, input: allowedUpdates });
+            if (typeof updatedUser === "string") {
+                return res.status(409).json({ message: updatedUser });
+            }
+            return res.json({ message: "Usuario actualizado correctamente" });
+        }
+
+        return res.status(403).json({ message: "No tienes permisos para actualizar este usuario" });
     }
 
     static async login(req, res) {
@@ -68,13 +145,13 @@ export class userController {
 
         if(!user) return res.status(409).json({message: 'Credenciales incorrectas'})
 
-        if(user.Estado === 1){
+        if(user.Estado === true){
             return res.status(403).json({message: 'Su cuenta se encuentra bloqueada, comuniquese con la administración'})
         }
         else{
 
-            const token = jwt.sign({id: user.CedulaCarnet,role:user.RolNombre}, 'OKDIJITOCUALQUIERCOSAQUEDIGAMARIANO', {expiresIn: '1d'})
-            return res.json(token)
+            const token = jwt.sign({id: user.CedulaCarnet,role:user.RolNombre}, process.env.JWT_SECRET, {expiresIn: '1d'})
+            return res.json({token})
         }
 
     }
@@ -171,13 +248,13 @@ export class userController {
         const { id } = req.params;
         const updatedUser = await userModel.updatePassword({ id });
 
-        // Si el modelo retorna un mensaje de error, envíalo como respuesta
+
         if (typeof updatedUser === 'string') {
-            // Responde con el mensaje de error específico
+
             return res.status(409).json({ message: updatedUser });
         }
 
-        // Si no hubo errores, envía una respuesta de éxito
+
         return res.json({ message: 'Usuario actualizado correctamente' });
     }
 
