@@ -89,11 +89,11 @@ export class reservationController {
     const { page = 1, itemsPerPage = 10 } = req.query; // Extrae page y itemsPerPage desde query params
 
     if (!userId) {
-      return res.status(400).json({ message: 'Falta el ID del usuario' });
+      return res.status(400).json({ message: 'ID de usuario no proporcionado' });
     }
 
     try {
-      // Pasa page e itemsPerPage al modelo
+
       const { reservations, totalPages } = await reservationModel.getByUserId({ userId, page: Number(page), itemsPerPage: Number(itemsPerPage) });
       if (reservations.length > 0) {
         return res.json({ reservations, totalPages });
@@ -125,7 +125,19 @@ export class reservationController {
   }
 
   static async delete(req, res) {
-    const {id} = req.params
+    const {id} = req.params;
+    const requester = req.user;
+
+    const reservation = await reservationModel.getById({id});
+
+    if(reservation.HoraFin < new Date().toISOString() && reservation.Fecha < new Date().toISOString().split('T')[0]) {
+      return res.status(400).json({ message: 'No se puede eliminar una reservación que ya ha finalizado' });
+    }
+
+    if (requester.id !== reservation.idUsuario && !['Administrador', 'AdministradorReservaciones'].includes(requester.role)) {
+      return res.status(403).json({ message: 'No tienes permiso para eliminar esta reservación' });
+    }
+
     const deletedReservation = await reservationModel.delete({id})
 
     if(deletedReservation === false) return res.status(404).json({message: 'Reservación no eliminada'})
@@ -146,7 +158,18 @@ export class reservationController {
       return res.status(400).json({error: JSON.parse(result.error.message)})
     }
 
-    const {id} = req.params
+    const {id} = req.params;
+    const requester = req.user;
+
+    const reservation = await reservationModel.getById({id});
+
+    if(reservation.HoraFin < new Date().toISOString() && reservation.Fecha < new Date().toISOString().split('T')[0]) {
+        return res.status(400).json({ message: 'No se puede editar una reservación que ya ha finalizado' });
+    }
+
+    if (requester.id !== reservation.idUsuario && !['Administrador', 'AdministradorReservaciones'].includes(requester.role)) {
+        return res.status(403).json({ message: 'No tienes permiso para editar esta reservación' });
+    }
     const updatedReservation = await reservationModel.update({id, input: req.body})
     if(updatedReservation ) return res.json(updatedReservation)
     res.status(404).json({message: 'Reservación no actualizada'})

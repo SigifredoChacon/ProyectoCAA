@@ -14,7 +14,6 @@ export class userModel {
                 u."CedulaCarnet",
                 u."Nombre",
                 u."CorreoEmail",
-                u."Contrasena",
                 u."Telefono",
                 u."Telefono2",
                 u."Direccion",

@@ -133,12 +133,21 @@ export class applicationController {
 
     static async delete(req, res) {
         const { id } = req.params;
-        const deletedApplication = await applicationModel.delete({ id });
+        const requester = req.user;
 
-        if (deletedApplication === false) {
-            return res.status(404).json({ message: 'Solicitud no eliminada' });
+        const aplication = await applicationModel.getById({ id });
+        if (aplication.Estado === "Pendiente" && parseInt(requester.id) === parseInt(aplication.idUsuario)) {
+
+            const deletedApplication = await applicationModel.delete({id});
+
+            if (deletedApplication === false) {
+                return res.status(404).json({message: 'Solicitud no eliminada'});
+            }
+            res.status(204).json({message: "Se eliminó correctamente la solicitud"});
         }
-        res.status(204).json({ message: "Se eliminó correctamente la solicitud" });
+        else {
+            res.status(403).json({message: "No tiene permisos para eliminar esta solicitud"});
+        }
     }
 
     static async update(req, res) {
@@ -202,7 +211,7 @@ export class applicationController {
 
 
 
-// Ejemplo de uso en la función sendJustificationEmail
+
     static async sendJustificationEmail(req, res) {
         try {
             const { idSolicitud, idUsuario, justificacion } = req.body;

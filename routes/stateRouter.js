@@ -1,16 +1,14 @@
 import {Router} from 'express';
 import {StateController} from "../controllers/stateController.js";
-import {roleController} from "../controllers/roleController.js";
-import {roleRouter} from "./roleRouter.js";
-
+import { verifyToken, requireRole } from "../middlewares/authMiddleware.js";
 
 
 export const stateRouter = Router();
 
 stateRouter.get('/', StateController.getAll)
-stateRouter.post('/',StateController.create)
+stateRouter.post('/',verifyToken,requireRole(["Administrador","AdministradorSolicitudes"]),StateController.create)
 stateRouter.get('/:nombre',StateController.getByStateName)
 
 stateRouter.get('/:id',StateController.getById)
-stateRouter.delete('/:id',StateController.delete)
-stateRouter.patch('/:id',StateController.update)
+stateRouter.delete('/:id',verifyToken,requireRole(["Administrador","AdministradorSolicitudes"]),StateController.delete)
+stateRouter.patch('/:id',verifyToken,requireRole(["Administrador","AdministradorSolicitudes"]),StateController.update)

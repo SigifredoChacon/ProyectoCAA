@@ -739,13 +739,13 @@ Observaciones: ${observaciones || 'Ninguna'}
 
   static async deleteByDate({ date }) {
     try {
-      // Obtener todas las reservaciones de esa fecha
+
       const { rows: reservations } = await pool.query(
           `SELECT * FROM "reservacion" WHERE "Fecha" = $1;`,
           [date]
       );
 
-      // Eliminar recursos asociados
+
       for (const reservation of reservations) {
         await pool.query(
             `DELETE FROM "reservacion_recursos" WHERE "idReservacion" = $1;`,

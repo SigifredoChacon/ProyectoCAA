@@ -1,14 +1,20 @@
 import { valorationModel } from '../models/postgresql/valorationModel.js';
+import {reservationModel} from "../models/postgresql/reservationModel.js";
 
 export class valorationController {
 
   // Crear una nueva valoración
   static async create(req, res) {
     try {
-      const idEncuesta = await valorationModel.create({ input: req.body });
-      return res.status(201).json({ message: 'Valoración creada con éxito', idEncuesta });
+        const requester = req.user.id;
+        const encuestasPendientes = await reservationModel.getByUserIdCompleted({id: requester});
+        if(encuestasPendientes.length === 0){
+            return res.status(400).json({ message: 'No tienes reservas completadas para valorar.' });
+        }
+        const idEncuesta = await valorationModel.create({ input: req.body });
+        return res.status(201).json({ message: 'Valoración creada con éxito', idEncuesta });
     } catch (error) {
-      return res.status(404).json(error);
+        return res.status(404).json(error);
     }
   }
 
