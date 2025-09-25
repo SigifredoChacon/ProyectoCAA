@@ -11,102 +11,67 @@ const pool = new Pool(DBConfig);
 
 export class reservationModel {
 
-  static async getAll ({ page = 1, itemsPerPage = 10 }) {
-    const offset = (page - 1) * itemsPerPage;
+    static async getAll({ page = 1, itemsPerPage = 10 }) {
+        const offset = (page - 1) * itemsPerPage;
 
-    // Contar el número total de reservaciones
-    const { rows: totalCountResult } = await pool.query(
-        `SELECT COUNT(*) AS "total"
-         FROM
-             "reservacion" r
-                 LEFT JOIN
-             "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
-                 LEFT JOIN
-             "recursos" rec ON rr."idRecurso" = rec."idRecursos"
-         WHERE
-             r."Estado" = true;`
-    );
+        // Contar el número total de reservaciones (sin duplicados)
+        const { rows: totalCountResult } = await pool.query(
+            `SELECT COUNT(*) AS "total"
+             FROM "reservacion" r
+             WHERE r."Estado" = true;`
+        );
 
-    const totalReservations = parseInt(totalCountResult[0].total, 10);
-    const totalPages = Math.ceil(totalReservations / itemsPerPage);
+        const totalReservations = parseInt(totalCountResult[0].total, 10);
+        const totalPages = Math.ceil(totalReservations / itemsPerPage);
 
-    // Obtener las reservaciones paginadas
-    const { rows: reservations } = await pool.query(
-        `SELECT
-           r."idReservacion",
-           r."Fecha",
-           r."HoraInicio",
-           r."HoraFin",
-           r."idSala",
-           r."idCubiculo",
-           r."idUsuario",
-           r."EncuestaCompletada",
-           rr."idRecurso",
-           rec."Nombre" AS "NombreRecurso",
-           r."Observaciones",
-           r."Refrigerio"
-         FROM
-           "reservacion" r
-             LEFT JOIN
-           "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
-             LEFT JOIN
-           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
-         WHERE
-           r."Estado" = true
-         ORDER BY r."idReservacion" DESC
-           LIMIT $1 OFFSET $2;`,
-        [itemsPerPage, offset]
-    );
+        // Obtener las reservaciones paginadas con recursos agrupados y ordenadas
+        const { rows: reservations } = await pool.query(
+            `SELECT
+                 r."idReservacion",
+                 r."Fecha",
+                 r."HoraInicio",
+                 r."HoraFin",
+                 r."idSala",
+                 r."idCubiculo",
+                 r."idUsuario",
+                 r."EncuestaCompletada",
+                 r."Observaciones",
+                 r."Refrigerio",
+                 COALESCE(
+                         JSON_AGG(
+                                 JSON_BUILD_OBJECT(
+                                         'idRecurso', rec."idRecursos",
+                                         'NombreRecurso', rec."Nombre"
+                                 )
+                         ) FILTER (WHERE rec."idRecursos" IS NOT NULL),
+                         '[]'
+                 ) AS "recursos"
+             FROM "reservacion" r
+                      LEFT JOIN "reservacion_recursos" rr
+                                ON r."idReservacion" = rr."idReservacion"
+                      LEFT JOIN "recursos" rec
+                                ON rr."idRecurso" = rec."idRecursos"
+             WHERE r."Estado" = true
+             GROUP BY r."idReservacion"
+             ORDER BY
+                 CASE WHEN r."Fecha" >= CURRENT_DATE THEN 0 ELSE 1 END,
+                 CASE WHEN r."Fecha" >= CURRENT_DATE THEN r."Fecha" END ASC,
+                 CASE WHEN r."Fecha" >= CURRENT_DATE THEN r."HoraInicio" END ASC,
+                 CASE WHEN r."Fecha" < CURRENT_DATE THEN r."Fecha" END DESC,
+                 CASE WHEN r."Fecha" < CURRENT_DATE THEN r."HoraInicio" END DESC
+                 LIMIT $1 OFFSET $2;`,
+            [itemsPerPage, offset]
+        );
 
-    if (reservations.length === 0) {
-      return {
-        reservations: [],
-        totalPages: 0
-      };
+        return {
+            reservations,
+            totalPages
+        };
     }
 
-    const reservationIds = reservations.map(r => r.idReservacion);
-
-    // Obtener recursos relacionados
-    const { rows: resources } = await pool.query(
-        `SELECT
-           rr."idReservacion",
-           rr."idRecurso",
-           rec."Nombre" AS "NombreRecurso"
-         FROM
-           "reservacion_recursos" rr
-             LEFT JOIN
-           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
-         WHERE
-           rr."idReservacion" = ANY($1::int[]);`,
-        [reservationIds]
-    );
-
-    const reservationMap = reservations.reduce((acc, reservation) => {
-      acc[reservation.idReservacion] = {
-        ...reservation,
-        recursos: []
-      };
-      return acc;
-    }, {});
-
-    resources.forEach(resource => {
-      if (reservationMap[resource.idReservacion]) {
-        reservationMap[resource.idReservacion].recursos.push({
-          idRecurso: resource.idRecurso,
-          NombreRecurso: resource.NombreRecurso
-        });
-      }
-    });
-
-    return {
-      reservations: Object.values(reservationMap),
-      totalPages
-    };
-  }
 
 
-  static async getAllPendingReservations () {
+    static async getAllPendingReservations () {
     const { rows: reservations } = await pool.query(
         `SELECT
            r."idReservacion",
@@ -503,107 +468,74 @@ export class reservationModel {
   }
 
 
-  static async getByUserId({ userId, page = 1, itemsPerPage = 10 }) {
-    const offset = (page - 1) * itemsPerPage;
+    static async getByUserId({ userId, page = 1, itemsPerPage = 10 }) {
+        const offset = (page - 1) * itemsPerPage;
 
-    // Contar el número total de reservaciones
-    const { rows: totalCountResult } = await pool.query(
-        `SELECT COUNT(*) as total
-         FROM
-             "reservacion" r
-                 LEFT JOIN
-             "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
-                 LEFT JOIN
-             "recursos" rec ON rr."idRecurso" = rec."idRecursos"
-         WHERE
-             r."Estado" = true AND r."idUsuario" = $1;`,
-        [userId]
-    );
+        const { rows: totalCountResult } = await pool.query(
+            `SELECT COUNT(*) as total
+             FROM "reservacion" r
+             WHERE r."Estado" = true AND r."idUsuario" = $1;`,
+            [userId]
+        );
 
-    const totalReservations = parseInt(totalCountResult[0].total, 10);
-    const totalPages = Math.ceil(totalReservations / itemsPerPage);
+        const totalReservations = parseInt(totalCountResult[0].total, 10);
+        const totalPages = Math.ceil(totalReservations / itemsPerPage);
 
-    // Obtener las reservaciones paginadas
-    const { rows: reservations } = await pool.query(
-        `SELECT
-           r."idReservacion",
-           r."Fecha",
-           r."HoraInicio",
-           r."HoraFin",
-           r."idSala",
-           r."idCubiculo",
-           r."idUsuario",
-           r."EncuestaCompletada",
-           rr."idRecurso",
-           rec."Nombre" AS "NombreRecurso",
-           r."Observaciones",
-           r."Refrigerio"
-         FROM
-           "reservacion" r
-             LEFT JOIN
-           "reservacion_recursos" rr ON r."idReservacion" = rr."idReservacion"
-             LEFT JOIN
-           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
-         WHERE
-           r."Estado" = true AND r."idUsuario" = $1
-         ORDER BY r."idReservacion" DESC
-           LIMIT $2 OFFSET $3;`,
-        [userId, itemsPerPage, offset]
-    );
+        const { rows: reservations } = await pool.query(
+            `SELECT
+                 r."idReservacion",
+                 r."Fecha",
+                 r."HoraInicio",
+                 r."HoraFin",
+                 r."idSala",
+                 r."idCubiculo",
+                 r."idUsuario",
+                 r."EncuestaCompletada",
+                 r."Observaciones",
+                 r."Refrigerio",
+                 COALESCE(
+                         JSON_AGG(
+                                 JSON_BUILD_OBJECT(
+                                         'idRecurso', rec."idRecursos",
+                                         'NombreRecurso', rec."Nombre"
+                                 )
+                         ) FILTER (WHERE rec."idRecursos" IS NOT NULL),
+                         '[]'
+                 ) AS "recursos"
+             FROM "reservacion" r
+                      LEFT JOIN "reservacion_recursos" rr
+                                ON r."idReservacion" = rr."idReservacion"
+                      LEFT JOIN "recursos" rec
+                                ON rr."idRecurso" = rec."idRecursos"
+             WHERE r."Estado" = true AND r."idUsuario" = $1
+             GROUP BY r."idReservacion"
+             ORDER BY
+                 CASE WHEN r."Fecha" >= CURRENT_DATE THEN 0 ELSE 1 END,
+                 r."Fecha" ASC NULLS LAST,
+                 r."HoraInicio" ASC NULLS LAST,
+                 r."Fecha" DESC NULLS LAST,
+                 r."HoraInicio" DESC NULLS LAST
+                 LIMIT $2 OFFSET $3;`,
+            [userId, itemsPerPage, offset]
+        );
 
-    if (reservations.length === 0) {
-      return {
-        reservations: [],
-        totalPages: 0
-      };
+        return {
+            reservations,
+            totalPages
+        };
     }
 
-    const reservationIds = reservations.map(r => r.idReservacion);
-
-    // Obtener recursos
-    const { rows: resources } = await pool.query(
-        `SELECT
-           rr."idReservacion",
-           rr."idRecurso",
-           rec."Nombre" AS "NombreRecurso"
-         FROM
-           "reservacion_recursos" rr
-             LEFT JOIN
-           "recursos" rec ON rr."idRecurso" = rec."idRecursos"
-         WHERE
-           rr."idReservacion" = ANY($1::int[]);`,
-        [reservationIds]
-    );
-
-    const reservationMap = reservations.reduce((acc, reservation) => {
-      acc[reservation.idReservacion] = {
-        ...reservation,
-        recursos: []
-      };
-      return acc;
-    }, {});
-
-    resources.forEach(resource => {
-      if (reservationMap[resource.idReservacion]) {
-        reservationMap[resource.idReservacion].recursos.push({
-          idRecurso: resource.idRecurso,
-          NombreRecurso: resource.NombreRecurso
-        });
-      }
-    });
-
-    return {
-      reservations: Object.values(reservationMap),
-      totalPages
-    };
-  }
 
 
 
 
 
 
-  static async create({ input }) {
+
+
+
+
+    static async create({ input }) {
     const {
       fecha,
       horaInicio,
