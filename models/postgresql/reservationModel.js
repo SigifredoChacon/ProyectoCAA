@@ -54,14 +54,22 @@ export class reservationModel {
              WHERE r."Estado" = true
              GROUP BY r."idReservacion"
              ORDER BY
-                 CASE WHEN r."Fecha" >= CURRENT_DATE THEN 0 ELSE 1 END,
-                 CASE WHEN r."Fecha" >= CURRENT_DATE THEN r."Fecha" END ASC,
-                 CASE WHEN r."Fecha" >= CURRENT_DATE THEN r."HoraInicio" END ASC,
-                 CASE WHEN r."Fecha" < CURRENT_DATE THEN r."Fecha" END DESC,
-                 CASE WHEN r."Fecha" < CURRENT_DATE THEN r."HoraInicio" END DESC
+                 CASE
+                     WHEN (r."Fecha"::timestamp + r."HoraInicio"::interval) >= NOW() THEN 0
+                     ELSE 1
+                     END,
+                 CASE
+                     WHEN (r."Fecha"::timestamp + r."HoraInicio"::interval) >= NOW()
+                         THEN (r."Fecha"::timestamp + r."HoraInicio"::interval)
+                     END ASC,
+                 CASE
+                     WHEN (r."Fecha"::timestamp + r."HoraInicio"::interval) < NOW()
+                         THEN (r."Fecha"::timestamp + r."HoraInicio"::interval)
+                     END DESC
                  LIMIT $1 OFFSET $2;`,
             [itemsPerPage, offset]
         );
+
 
         return {
             reservations,
@@ -471,6 +479,7 @@ export class reservationModel {
     static async getByUserId({ userId, page = 1, itemsPerPage = 10 }) {
         const offset = (page - 1) * itemsPerPage;
 
+        // Contar el número total de reservaciones (sin duplicados)
         const { rows: totalCountResult } = await pool.query(
             `SELECT COUNT(*) as total
              FROM "reservacion" r
@@ -481,6 +490,7 @@ export class reservationModel {
         const totalReservations = parseInt(totalCountResult[0].total, 10);
         const totalPages = Math.ceil(totalReservations / itemsPerPage);
 
+        // Obtener las reservaciones paginadas con recursos agrupados
         const { rows: reservations } = await pool.query(
             `SELECT
                  r."idReservacion",
@@ -510,20 +520,29 @@ export class reservationModel {
              WHERE r."Estado" = true AND r."idUsuario" = $1
              GROUP BY r."idReservacion"
              ORDER BY
-                 CASE WHEN r."Fecha" >= CURRENT_DATE THEN 0 ELSE 1 END,
-                 r."Fecha" ASC NULLS LAST,
-                 r."HoraInicio" ASC NULLS LAST,
-                 r."Fecha" DESC NULLS LAST,
-                 r."HoraInicio" DESC NULLS LAST
+                 CASE
+                     WHEN (r."Fecha"::timestamp + r."HoraInicio"::interval) >= NOW() THEN 0
+                     ELSE 1
+                     END,
+                 CASE
+                     WHEN (r."Fecha"::timestamp + r."HoraInicio"::interval) >= NOW()
+                         THEN (r."Fecha"::timestamp + r."HoraInicio"::interval)
+                     END ASC,
+                 CASE
+                     WHEN (r."Fecha"::timestamp + r."HoraInicio"::interval) < NOW()
+                         THEN (r."Fecha"::timestamp + r."HoraInicio"::interval)
+                     END DESC
                  LIMIT $2 OFFSET $3;`,
             [userId, itemsPerPage, offset]
         );
+
 
         return {
             reservations,
             totalPages
         };
     }
+
 
 
 
