@@ -4,7 +4,7 @@ import {DBConfig} from '../../DBConfig.js'
 
 const pool = new Pool(DBConfig);
 
-export class StateModel {
+export class stateModel {
 
     static async getAll() {
         const { rows: states } = await pool.query(

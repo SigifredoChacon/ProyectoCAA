@@ -1,17 +1,21 @@
-import { valorationModel } from '../models/postgresql/valorationModel.js';
-import {reservationModel} from "../models/postgresql/reservationModel.js";
 
-export class valorationController {
+
+export class ValorationController {
+
+    constructor({valorationModel, reservationModel}) {
+        this.valorationModel = valorationModel
+        this.reservationModel = reservationModel
+    }
 
   // Crear una nueva valoración
-  static async create(req, res) {
+  create = async (req, res) =>{
     try {
         const requester = req.user.id;
-        const encuestasPendientes = await reservationModel.getByUserIdCompleted({id: requester});
+        const encuestasPendientes = await this.reservationModel.getByUserIdCompleted({id: requester});
         if(encuestasPendientes.length === 0){
             return res.status(400).json({ message: 'No tienes reservas completadas para valorar.' });
         }
-        const idEncuesta = await valorationModel.create({ input: req.body });
+        const idEncuesta = await this.valorationModel.create({ input: req.body });
         return res.status(201).json({ message: 'Valoración creada con éxito', idEncuesta });
     } catch (error) {
         return res.status(404).json(error);
@@ -19,9 +23,9 @@ export class valorationController {
   }
 
   // Obtener todas las valoraciones
-  static async getAll(req, res) {
+  getAll = async(req, res) =>{
     try {
-      const valoraciones = await valorationModel.getAll();
+      const valoraciones = await this.valorationModel.getAll();
       return res.status(200).json(valoraciones);
     } catch (error) {
 
@@ -30,10 +34,10 @@ export class valorationController {
   }
 
   // Obtener valoraciones por Sala
-  static async getBySala(req, res) {
+  getBySala = async (req, res) =>{
     const { idSala } = req.params;
     try {
-      const valoraciones = await valorationModel.getByRoomId(idSala);
+      const valoraciones = await this.valorationModel.getByRoomId(idSala);
       if (valoraciones.length === 0) {
         return res.status(404).json({ message: 'No se encontraron valoraciones para esta sala' });
       }
@@ -45,10 +49,10 @@ export class valorationController {
   }
 
   // Obtener valoraciones por Cubículo
-  static async getByCubiculo(req, res) {
+  getByCubiculo = async (req, res) =>{
     const { idCubiculo } = req.params;
     try {
-      const valoraciones = await valorationModel.getByCubicleId(idCubiculo);
+      const valoraciones = await this.valorationModel.getByCubicleId(idCubiculo);
       if (valoraciones.length === 0) {
         return res.status(404).json({ message: 'No se encontraron valoraciones para este cubículo' });
       }
@@ -59,10 +63,10 @@ export class valorationController {
   }
 
   // Obtener una valoración por ID
-  static async getById(req, res) {
+  getById = async (req, res) =>{
     const { idEncuesta } = req.params;
     try {
-      const valoracion = await valorationModel.getById(idEncuesta);
+      const valoracion = await this.valorationModel.getById(idEncuesta);
       if (!valoracion) {
         return res.status(404).json({ message: 'Valoración no encontrada' });
       }
@@ -74,9 +78,9 @@ export class valorationController {
   }
 
   // Eliminar una valoración
-  static async delete(req, res) {
+  delete = async (req, res) =>{
     const { idEncuesta } = req.params;
-    const deleted = await valorationModel.delete(idEncuesta);
+    const deleted = await this.valorationModel.delete(idEncuesta);
     if (deleted) {
       return res.status(204).json({ message: 'Valoración eliminada correctamente' });
     }

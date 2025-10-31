@@ -5,7 +5,7 @@ import {sendEmail} from "../../services/emailService.js";
 
 const connection = await mysql.createConnection(DBConfig)
 
-export class RoomModel {
+export class roomModel {
 
     static async getAll () {
         const [rooms] = await connection.query(

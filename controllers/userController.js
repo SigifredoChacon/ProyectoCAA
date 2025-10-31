@@ -1,26 +1,29 @@
-import {userModel} from '../models/postgresql/userModel.js';
 import {validateUser, validateUserUpdate} from '../schemas/userSchema.js';
 import jwt from 'jsonwebtoken';
 import {sendEmail} from "../services/emailService.js";
 import dotenv from 'dotenv';
-import {roleModel} from "../models/postgresql/roleModel.js";
-import {roleController as rolModel} from "./roleController.js";
 dotenv.config();
 
-export class userController {
 
-    static async getAll(req, res) {
-        const users = await userModel.getAll()
+export class UserController {
+
+    constructor({userModel, roleModel}) {
+        this.userModel = userModel
+        this.roleModel = roleModel
+    }
+
+     getAll = async (req, res) =>{
+        const users = await this.userModel.getAll()
         res.json(users)
     }
-    static async getById(req, res) {
+     getById = async (req, res) =>{
         try {
             const { id } = req.params;
             const requester = req.user;
 
 
             if (requester.role === "Administrador" || requester.role === "AdministradorReservaciones") {
-                const user = await userModel.getById({id});
+                const user = await this.userModel.getById({id});
                 return res.json(user);
             }
 
@@ -29,7 +32,7 @@ export class userController {
                 return res.status(403).json({ message: "No tienes permiso para ver este usuario" });
             }
 
-            const user = await userModel.getById({id});
+            const user = await this.userModel.getById({id});
             res.json(user);
         } catch (err) {
             console.error(err);
@@ -38,18 +41,18 @@ export class userController {
     }
 
 
-    static async create(req, res) {
+     create = async (req, res) =>{
         const result = validateUser(req.body);
         if (!result.success) {
             return res.status(400).json({ message: JSON.parse(result.error.message) });
         }
 
-        const role = await roleModel.getById({ id: req.body.idRol });
+        const role = await this.roleModel.getById({ id: req.body.idRol });
         if (!role) {
             return res.status(400).json({ message: "Rol no válido" });
         }
 
-        const newUser = await userModel.create({ input: req.body });
+        const newUser = await this.userModel.create({ input: req.body });
 
         if (typeof newUser === "string") {
             return res.status(409).json({ message: newUser });
@@ -58,14 +61,14 @@ export class userController {
         res.status(201).json(newUser);
     }
 
-    static async register(req, res) {
+     register = async (req, res) =>{
         const result = validateUser(req.body);
         if (!result.success) {
             return res.status(400).json({ message: JSON.parse(result.error.message) });
         }
 
 
-        const role = await roleModel.getById({ id: req.body.idRol });
+        const role = await this.roleModel.getById({ id: req.body.idRol });
 
         if (!role) {
             return res.status(400).json({ message: "Rol no válido" });
@@ -77,7 +80,7 @@ export class userController {
             return res.status(403).json({ message: "No tienes permisos para registrarte con este rol" });
         }
 
-        const newUser = await userModel.create({input: req.body });
+        const newUser = await this.userModel.create({input: req.body });
 
         if (typeof newUser === "string") {
             return res.status(409).json({ message: newUser });
@@ -87,15 +90,15 @@ export class userController {
     }
 
 
-    static async delete(req, res) {
+     delete = async (req, res) =>{
         const {id} = req.params
-        const deletedUser = await userModel.delete({id})
+        const deletedUser = await this.userModel.delete({id})
 
         if(deletedUser === false) return res.status(404).json({message: 'Usuario no eliminado'})
         res.status(204).json({message: "Se elimino correctamente el usuario"})
     }
 
-    static async update(req, res) {
+     update = async (req, res) =>{
         const result = validateUserUpdate(req.body);
         if (result.success === false) {
             return res.status(400).json({ error: JSON.parse(result.error.message) });
@@ -109,7 +112,7 @@ export class userController {
                 return res.status(403).json({ message: "No puedes modificar tu rol ni tu estado" });
             }
 
-            const updatedUser = await userModel.update({ id, input: req.body });
+            const updatedUser = await this.userModel.update({ id, input: req.body });
             if (typeof updatedUser === "string") {
                 return res.status(409).json({ message: updatedUser });
             }
@@ -129,7 +132,7 @@ export class userController {
                 return res.status(400).json({ message: "Solo puedes actualizar rol o estado de otros usuarios" });
             }
 
-            const updatedUser = await userModel.update({ id, input: allowedUpdates });
+            const updatedUser = await this.userModel.update({ id, input: allowedUpdates });
             if (typeof updatedUser === "string") {
                 return res.status(409).json({ message: updatedUser });
             }
@@ -139,9 +142,9 @@ export class userController {
         return res.status(403).json({ message: "No tienes permisos para actualizar este usuario" });
     }
 
-    static async login(req, res) {
+     login = async (req, res) =>{
 
-        const user = await userModel.login({input: req.body})
+        const user = await this.userModel.login({input: req.body})
 
         if(!user) return res.status(409).json({message: 'Credenciales incorrectas'})
 
@@ -156,7 +159,7 @@ export class userController {
 
     }
 
-    static async sendAllEmail(req, res) {
+     sendAllEmail = async (req, res) =>{
         try {
 
             const { asunto, descripcion } = req.body;
@@ -167,7 +170,7 @@ export class userController {
             }
 
 
-            const emails = await userModel.getAllEmails();
+            const emails = await this.userModel.getAllEmails();
 
 
             for (let i = 0; i < emails.length; i++) {
@@ -243,10 +246,10 @@ export class userController {
         }
     }
 
-    static async updatePassword(req, res) {
+     updatePassword = async (req, res) =>{
 
         const { id } = req.params;
-        const updatedUser = await userModel.updatePassword({ id });
+        const updatedUser = await this.userModel.updatePassword({ id });
 
 
         if (typeof updatedUser === 'string') {
@@ -259,7 +262,7 @@ export class userController {
     }
 
 
-    static async sendAdminEmails(req, res) {
+     sendAdminEmails = async (req, res) =>{
         try {
             const { cedulaCarnet, nombre, correoEmail } = req.body;
 
@@ -269,7 +272,7 @@ export class userController {
             }
 
 
-            const users = await userModel.getAll();
+            const users = await this.userModel.getAll();
 
 
             const admins = users.filter(user =>

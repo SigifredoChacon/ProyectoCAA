@@ -1,10 +1,17 @@
-import {RoomModel} from '../models/postgresql/roomModel.js';
 import {validateRoom, validateRoomUpdate} from '../schemas/roomSchema.js';
+
+
 export class RoomController {
 
-    static async getAll(req, res) {
+
+    constructor({roomModel}) {
+        this.roomModel = roomModel
+    }
+
+
+    getAll = async (req, res) =>{
         try {
-            const rooms = await RoomModel.getAll();
+            const rooms = await this.roomModel.getAll();
 
 
             const roomsWithBase64Images = rooms.map((room) => {
@@ -27,27 +34,27 @@ export class RoomController {
         }
     }
 
-    static async getById(req, res) {
+    getById = async (req, res) =>{
         const {id} = req.params
-        const room = await RoomModel.getById({id})
+        const room = await this.roomModel.getById({id})
         if(room) return res.json(room)
         res.status(404).json({message: 'Sala no encontrada'})
     }
 
-    static async getNameById(req, res) {
+    getNameById = async (req, res) =>{
         const {id} = req.params
-        const room = await RoomModel.getNameById({id})
+        const room = await this.roomModel.getNameById({id})
         if(room) return res.json(room)
         res.status(404).json({message: 'Sala no encontrada'})
     }
 
-    static async create(req, res) {
+    create = async (req, res) =>{
 
 
         const imagen = req.file ? req.file.buffer : null;
 
 
-        const newRoom = await RoomModel.create({
+        const newRoom = await this.roomModel.create({
             input: {
                 imagen,
                 nombre: req.body.nombre,
@@ -67,15 +74,15 @@ export class RoomController {
     }
 
 
-    static async delete(req, res) {
+    delete = async (req, res) =>{
         const {id} = req.params
-        const deletedRoom = await RoomModel.delete({id})
+        const deletedRoom = await this.roomModel.delete({id})
 
         if(deletedRoom === false) return res.status(404).json({message: 'Sala no eliminada, alguna reservacion posee esta sala'})
         res.status(204).json({message: "Se elimino correctamente la sala"})
     }
 
-    static async update(req, res) {
+    update = async (req, res) =>{
         try {
 
             let updateData = req.body;
@@ -96,7 +103,7 @@ export class RoomController {
             const { id } = req.params;
 
 
-            const updatedRoom = await RoomModel.update({ id, input: updateData });
+            const updatedRoom = await this.roomModel.update({ id, input: updateData });
             if (updatedRoom) {
                 return res.json(updatedRoom);
             }
@@ -108,14 +115,14 @@ export class RoomController {
         }
     }
 
-    static async lock(req, res) {
-        const updatedRooms = await RoomModel.lock()
+    lock = async (req, res) =>{
+        const updatedRooms = await this.roomModel.lock()
         if(updatedRooms) return res.json(updatedRooms)
         res.status(404).json({message: 'Salas no actualizadas'})
     }
 
-    static async unLock(req, res) {
-        const updatedRooms = await RoomModel.unLock()
+    unLock = async (req, res) =>{
+        const updatedRooms = await this.roomModel.unLock()
         if(updatedRooms) return res.json(updatedRooms)
         res.status(404).json({message: 'Salas no actualizadas'})
     }

@@ -6,7 +6,7 @@ import {sendEmail} from "../../services/emailService.js";
 
 const pool = new Pool(DBConfig);
 
-export class RoomModel {
+export class roomModel {
 
     static async getAll() {
         const { rows: rooms } = await pool.query(

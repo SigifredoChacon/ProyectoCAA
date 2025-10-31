@@ -338,9 +338,10 @@ export class userModel {
             // Retornar el resultado del usuario actualizado
             const {rows: updatedUser } = await pool.query(
                 `SELECT *
-             FROM "usuario" WHERE "CedulaCarnet" = ?;`,
+             FROM "usuario" WHERE "CedulaCarnet" = $1;`,
                 [id]
             );
+
 
             return updatedUser[0];
         } catch (error) {

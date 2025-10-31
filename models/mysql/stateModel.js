@@ -3,7 +3,7 @@ import {DBConfig} from '../../DBConfig.js'
 
 const connection = await mysql.createConnection(DBConfig)
 
-export class StateModel {
+export class stateModel {
 
   static async getAll () {
     const [states] = await connection.query(

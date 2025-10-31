@@ -3,17 +3,24 @@ import {RoomController} from "../controllers/roomController.js";
 import { verifyToken, requireRole } from "../middlewares/authMiddleware.js";
 
 
-export const roomRouter = Router();
+export const createRoomRouter = ({roomModel}) => {
 
-roomRouter.get('/', RoomController.getAll)
-roomRouter.get('/:id',RoomController.getById)
-roomRouter.get('/getName/:id',RoomController.getNameById)
+    const roomRouter = Router();
 
-roomRouter.post('/',verifyToken,requireRole(["Administrador","AdministradorReservaciones"]),RoomController.create)
+    const roomController = new RoomController({roomModel});
 
-roomRouter.delete('/:id',verifyToken,requireRole(["Administrador","AdministradorReservaciones"]), RoomController.delete)
+    roomRouter.get('/', roomController.getAll)
+    roomRouter.get('/:id',roomController.getById)
+    roomRouter.get('/getName/:id',roomController.getNameById)
 
-roomRouter.patch('/roomLock', verifyToken,requireRole(["Administrador","AdministradorReservaciones"]),RoomController.lock)
-roomRouter.patch('/roomUnLock',verifyToken,requireRole(["Administrador","AdministradorReservaciones"]),RoomController.unLock)
-roomRouter.patch('/:id',verifyToken,requireRole(["Administrador","AdministradorReservaciones"]),RoomController.update)
+    roomRouter.post('/',verifyToken,requireRole(["Administrador","AdministradorReservaciones"]),roomController.create)
 
+    roomRouter.delete('/:id',verifyToken,requireRole(["Administrador","AdministradorReservaciones"]), roomController.delete)
+
+    roomRouter.patch('/roomLock', verifyToken,requireRole(["Administrador","AdministradorReservaciones"]),roomController.lock)
+    roomRouter.patch('/roomUnLock',verifyToken,requireRole(["Administrador","AdministradorReservaciones"]),roomController.unLock)
+    roomRouter.patch('/:id',verifyToken,requireRole(["Administrador","AdministradorReservaciones"]),roomController.update)
+
+
+    return roomRouter;
+}

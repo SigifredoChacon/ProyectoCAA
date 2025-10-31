@@ -1,9 +1,6 @@
-import { applicationModel } from '../models/postgresql/applicationModel.js';
 import { validateApplication, validateApplicationUpdate } from '../schemas/applicationSchema.js';
 import multer from 'multer';
-import {userModel} from "../models/postgresql/userModel.js";
 import {sendEmail} from "../services/emailService.js";
-import {assetModel} from "../models/postgresql/assetModel.js";
 import { fileURLToPath } from 'url'
 import path from 'path'
 import fs from 'fs'
@@ -65,28 +62,35 @@ const createEmailHtml = (asunto, descripcion) => `
 
 const upload = multer({ storage: storage });
 
-export class applicationController {
 
-    static async getAll(req, res) {
-        const applications = await applicationModel.getAll();
+export class ApplicationController {
+
+    constructor({applicationModel, userModel, assetModel}) {
+        this.userModel = userModel;
+        this.assetModel = assetModel;
+        this.applicationModel = applicationModel
+    }
+
+    getAll = async (req, res) =>{
+        const applications = await this.applicationModel.getAll();
         res.json(applications);
     }
 
-    static async getById(req, res) {
+    getById = async(req, res) =>{
         const { id } = req.params;
-        const application = await applicationModel.getById({ id });
+        const application = await this.applicationModel.getById({ id });
         if (application) return res.json(application);
         res.status(404).json({ message: 'Solicitud no encontrada' });
     }
 
-    static async getByUserId(req, res) {
+    getByUserId = async(req, res) =>{
         const { userId } = req.params;
-        const applications = await applicationModel.getByUserId({ userId });
+        const applications = await this.applicationModel.getByUserId({ userId });
         if(applications.length > 0) return res.json(applications)
         res.status(404).json({message: 'No hay solicitudes realizadas por este usuario'})
     }
 
-    static create = [
+     create = [
         upload.single('archivoSolicitud'),
         async (req, res) => {
 
@@ -121,7 +125,7 @@ export class applicationController {
             };
 
 
-            const newApplication = await applicationModel.create({ input });
+            const newApplication = await this.applicationModel.create({ input });
             if (newApplication === false) {
                 return res.status(409).json({ message: 'Dato repetido' });
             }
@@ -131,14 +135,14 @@ export class applicationController {
 
 
 
-    static async delete(req, res) {
+    delete = async (req, res) =>{
         const { id } = req.params;
         const requester = req.user;
 
-        const aplication = await applicationModel.getById({ id });
+        const aplication = await this.applicationModel.getById({ id });
         if (aplication.Estado === "Pendiente" && parseInt(requester.id) === parseInt(aplication.idUsuario)) {
 
-            const deletedApplication = await applicationModel.delete({id});
+            const deletedApplication = await this.applicationModel.delete({id});
 
             if (deletedApplication === false) {
                 return res.status(404).json({message: 'Solicitud no eliminada'});
@@ -150,19 +154,19 @@ export class applicationController {
         }
     }
 
-    static async update(req, res) {
+    update = async(req, res) =>{
         const result = validateApplicationUpdate(req.body);
         if (result.success === false) {
             return res.status(400).json({ error: JSON.parse(result.error.message) });
         }
 
         const { id } = req.params;
-        const updatedApplication = await applicationModel.update({ id, input: req.body });
+        const updatedApplication = await this.applicationModel.update({ id, input: req.body });
         if (updatedApplication) return res.json(updatedApplication);
         res.status(404).json({ message: 'Solicitud no actualizada' });
     }
 
-    static updateSignApplication = [
+    updateSignApplication = [
         upload.single('archivoSolicitud'),
         async (req, res) => {
             const { id } = req.params;
@@ -170,7 +174,7 @@ export class applicationController {
 
             try {
 
-                const currentApplication = await applicationModel.getById({id: id });
+                const currentApplication = await this.applicationModel.getById({id: id });
 
                 if (!currentApplication) {
                     return res.status(404).json({ message: 'Solicitud no encontrada' });
@@ -198,7 +202,7 @@ export class applicationController {
                     archivoSolicitud: newFilePath
                 };
 
-                const updatedApplication = await applicationModel.updateSignApplication({ id, input });
+                const updatedApplication = await this.applicationModel.updateSignApplication({ id, input });
 
                 res.json(updatedApplication);
             } catch (error) {
@@ -212,7 +216,7 @@ export class applicationController {
 
 
 
-    static async sendJustificationEmail(req, res) {
+    sendJustificationEmail = async (req, res) =>{
         try {
             const { idSolicitud, idUsuario, justificacion } = req.body;
 
@@ -223,19 +227,19 @@ export class applicationController {
 
 
             // Obtener la solicitud usando `idSolicitud`
-            const solicitud = await applicationModel.getById({id: idSolicitud});
+            const solicitud = await this.applicationModel.getById({id: idSolicitud});
             if (!solicitud) {
                 return res.status(404).json({ message: 'Solicitud no encontrada' });
             }
 
             // Obtener el correo del usuario
-            const user = await userModel.getById({id: idUsuario});
+            const user = await this.userModel.getById({id: idUsuario});
             if (!user || !user.CorreoEmail) {
                 return res.status(404).json({ message: 'Usuario no encontrado o sin correo electrónico registrado' });
             }
 
             // Obtener los detalles del activo
-            const activo = await assetModel.getById({id: solicitud.idActivo});
+            const activo = await this.assetModel.getById({id: solicitud.idActivo});
             if (!activo) {
                 return res.status(404).json({ message: 'Activo no encontrado' });
             }

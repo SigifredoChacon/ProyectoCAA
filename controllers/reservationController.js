@@ -1,20 +1,21 @@
-import {reservationModel} from '../models/postgresql/reservationModel.js';
 import {validateReservation, validateReservationUpdate} from '../schemas/reservationSchema.js';
 import {sendEmail} from "../services/emailService.js";
 import {format} from "date-fns";
 import {es} from "date-fns/locale";
-import { DBConfig } from '../DBConfig.js'
-import pkg from 'pg';
-const { Pool } = pkg;
-const pool = new Pool(DBConfig);
 
-export class reservationController {
+export class ReservationController {
 
-  static async getAll(req, res) {
+    constructor({reservationModel, roomModel, cubicleModel}) {
+        this.roomModel = roomModel
+        this.cubicleModel = cubicleModel
+        this.reservationModel = reservationModel
+    }
+
+  getAll = async (req, res) =>{
     const { page = 1, itemsPerPage = 10 } = req.query;
     try {
 
-      const { reservations, totalPages } = await reservationModel.getAll({ page: Number(page), itemsPerPage: Number(itemsPerPage) });
+      const { reservations, totalPages } = await this.reservationModel.getAll({ page: Number(page), itemsPerPage: Number(itemsPerPage) });
       if (reservations.length > 0) {
         return res.json({ reservations, totalPages });
       }
@@ -25,21 +26,21 @@ export class reservationController {
     }
   }
 
-  static async getAllPendingReservations(req, res) {
-    const reservations = await reservationModel.getAllPendingReservations()
+  getAllPendingReservations = async (req, res) =>{
+    const reservations = await this.reservationModel.getAllPendingReservations()
     res.json(reservations)
   }
-  static async getById(req, res) {
+  getById = async (req, res) =>{
     const {id} = req.params
-    const reservation = await reservationModel.getById({id})
+    const reservation = await this.reservationModel.getById({id})
     if(reservation) return res.json(reservation)
     res.status(404).json({message: 'Reservación no encontrada'})
   }
 
-  static async getByDate(req, res) {
+  getByDate = async (req, res) =>{
     try {
       const { date } = req.params;
-      const reservations = await reservationModel.getByDate({ date });
+      const reservations = await this.reservationModel.getByDate({ date });
 
       return res.json(reservations.length > 0 ? reservations : []);
 
@@ -49,42 +50,42 @@ export class reservationController {
   }
 
 
-  static async getByRoomId(req, res) {
+  getByRoomId = async (req, res) =>{
     const {roomId} = req.params
-    const reservations = await reservationModel.getByRoomId({roomId})
+    const reservations = await this.reservationModel.getByRoomId({roomId})
     if(reservations.length > 0) return res.json(reservations)
     res.status(404).json({message: 'No hay reservaciones para esta sala'})
   }
 
-  static async getByCubicleId(req, res) {
+  getByCubicleId = async (req, res) =>{
     const {cubicleId} = req.params
-    const reservations = await reservationModel.getByCubicleId({cubicleId})
+    const reservations = await this.reservationModel.getByCubicleId({cubicleId})
     if(reservations.length > 0) return res.json(reservations)
     res.status(404).json({message: 'No hay reservaciones para este cubiculo'})
   }
 
-  static async getByYear(req, res) {
+  getByYear = async (req, res) =>{
     const {year} = req.params
-    const reservations = await reservationModel.getByYear({year})
+    const reservations = await this.reservationModel.getByYear({year})
     if(reservations.length > 0) return res.json(reservations)
     res.status(404).json({message: 'No hay reservaciones para el año seleccionado'})
   }
 
-  static async getByMonth(req, res) {
+  getByMonth = async (req, res) =>{
     const {year, month} = req.params
-    const reservations = await reservationModel.getByMonth({year, month})
+    const reservations = await this.reservationModel.getByMonth({year, month})
     if(reservations.length > 0) return res.json(reservations)
     res.status(404).json({message: 'No hay reservaciones para el mes seleccionado'})
   }
 
-  static async getByDateRange(req, res) {
+  getByDateRange = async (req, res) =>{
     const {startDate, endDate} = req.query
-    const reservations = await reservationModel.getByDateRange({startDate, endDate})
+    const reservations = await this.reservationModel.getByDateRange({startDate, endDate})
     if(reservations.length > 0) return res.json(reservations)
     res.status(404).json({message: 'No hay reservaciones en el rango de fechas seleccionado'})
   }
 
-  static async getByUserId(req, res) {
+  getByUserId = async (req, res) =>{
     const { userId } = req.params;
     const { page = 1, itemsPerPage = 10 } = req.query; // Extrae page y itemsPerPage desde query params
 
@@ -94,7 +95,7 @@ export class reservationController {
 
     try {
 
-      const { reservations, totalPages } = await reservationModel.getByUserId({ userId, page: Number(page), itemsPerPage: Number(itemsPerPage) });
+      const { reservations, totalPages } = await this.reservationModel.getByUserId({ userId, page: Number(page), itemsPerPage: Number(itemsPerPage) });
       if (reservations.length > 0) {
         return res.json({ reservations, totalPages });
       }
@@ -104,9 +105,11 @@ export class reservationController {
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
-  static async getByUserIdComplete(req, res) {
+
+
+  getByUserIdComplete = async (req, res) =>{
     const {id} = req.params;
-    const reservations = await reservationModel.getByUserIdCompleted({id})
+    const reservations = await this.reservationModel.getByUserIdCompleted({id})
     if(reservations.length > 0) return res.json(reservations)
     res.status(404).json({message: 'No hay reservaciones con encuesta faltante'})
   }
@@ -114,21 +117,21 @@ export class reservationController {
 
 
 
-  static async create(req, res) {
+  create = async (req, res) =>{
     const result = validateReservation(req.body)
     if (result.success === false) {
       return res.status(400).json({error: JSON.parse(result.error.message)})
     }
-    const newReservation= await reservationModel.create({input: req.body})
+    const newReservation= await this.reservationModel.create({input: req.body})
     if(newReservation === false) return res.status(409).json({message: 'Dato repetido'})
     res.status(201).json(newReservation)
   }
 
-  static async delete(req, res) {
+  delete = async (req, res)=> {
     const {id} = req.params;
     const requester = req.user;
 
-    const reservation = await reservationModel.getById({id});
+    const reservation = await this.reservationModel.getById({id});
 
     if(reservation.HoraFin < new Date().toISOString() && reservation.Fecha < new Date().toISOString().split('T')[0]) {
       return res.status(400).json({ message: 'No se puede eliminar una reservación que ya ha finalizado' });
@@ -138,21 +141,21 @@ export class reservationController {
       return res.status(403).json({ message: 'No tienes permiso para eliminar esta reservación' });
     }
 
-    const deletedReservation = await reservationModel.delete({id})
+    const deletedReservation = await this.reservationModel.delete({id})
 
     if(deletedReservation === false) return res.status(404).json({message: 'Reservación no eliminada'})
     res.status(204).json({message: "Se elimino correctamente la reservación"})
   }
 
-  static async deleteByDate(req, res) {
+  deleteByDate = async (req, res) =>{
     const {date} = req.params
-    const deletedReservation = await reservationModel.deleteByDate({date})
+    const deletedReservation = await this.reservationModel.deleteByDate({date})
 
     if(deletedReservation === false) return res.status(404).json({message: 'Reservación no eliminada'})
     res.status(204).json({message: "Se elimino correctamente la reservación"})
   }
 
-  static async update(req, res) {
+  update = async (req, res) =>{
     const result = validateReservationUpdate(req.body)
     if (result.success === false) {
       return res.status(400).json({error: JSON.parse(result.error.message)})
@@ -161,7 +164,7 @@ export class reservationController {
     const {id} = req.params;
     const requester = req.user;
 
-    const reservation = await reservationModel.getById({id});
+    const reservation = await this.reservationModel.getById({id});
 
     if(reservation.HoraFin < new Date().toISOString() && reservation.Fecha < new Date().toISOString().split('T')[0]) {
         return res.status(400).json({ message: 'No se puede editar una reservación que ya ha finalizado' });
@@ -170,11 +173,12 @@ export class reservationController {
     if (requester.id !== reservation.idUsuario && !['Administrador', 'AdministradorReservaciones'].includes(requester.role)) {
         return res.status(403).json({ message: 'No tienes permiso para editar esta reservación' });
     }
-    const updatedReservation = await reservationModel.update({id, input: req.body})
+    const updatedReservation = await this.reservationModel.update({id, input: req.body})
     if(updatedReservation ) return res.json(updatedReservation)
     res.status(404).json({message: 'Reservación no actualizada'})
   }
-  static async shareReservation(req, res) {
+
+  shareReservation = async (req, res) =>{
     try {
       const { correosDestinatarios, nombreRemitente, reservationDetails, observaciones, idSala, idCubiculo, refrigerio } = req.body;
 
@@ -183,15 +187,11 @@ export class reservationController {
         return res.status(400).json({ message: 'Todos los campos son requeridos y deben ser válidos' });
       }
 
-      const{ rows: cubicleDetails } = await pool.query(
-          'SELECT "Nombre" FROM cubiculo WHERE "idCubiculo" = $1',
-          [idCubiculo]
-      );
 
-      const{ rows: roomDetails} = await pool.query(
-          'SELECT "Nombre" FROM sala WHERE "idSala" = $1',
-          [idSala]
-      );
+
+      const cubicleDetails = await this.cubicleModel.getById({idCubiculo})
+
+      const roomDetails = await this.roomModel.getById({idSala})
 
       const emailSubject = 'Invitación a Reunión';
       const emailText = `
@@ -201,8 +201,8 @@ export class reservationController {
             Fecha: ${reservationDetails.Fecha}
             Hora de Inicio: ${reservationDetails.HoraInicio}
             Hora de Fin: ${reservationDetails.HoraFin}
-            Sala: ${idSala ? `Sala ${roomDetails[0].Nombre}` : 'N/A'}
-            Cubículo: ${idCubiculo ? `Cubículo ${cubicleDetails[0].Nombre}` : 'N/A'}
+            Sala: ${idSala ? `Sala ${roomDetails.Nombre}` : 'N/A'}
+            Cubículo: ${idCubiculo ? `Cubículo ${cubicleDetails.Nombre}` : 'N/A'}
             Observaciones: ${observaciones || 'Ninguna'}
         `;
 
@@ -276,7 +276,7 @@ export class reservationController {
       res.status(500).json({ message: 'Error al enviar los correos' });
     }
   }
-  static async getReservationsByCubicleIdAndWeek(req, res) {
+  getReservationsByCubicleIdAndWeek = async (req, res) =>{
     try {
 
       const { cubicleId } = req.params;
@@ -288,7 +288,7 @@ export class reservationController {
       }
 
 
-      const reservations = await reservationModel.getReservationsByCubicleIdAndWeek({ cubicleId, startDate, endDate });
+      const reservations = await this.reservationModel.getReservationsByCubicleIdAndWeek({ cubicleId, startDate, endDate });
 
 
       if (reservations.length === 0) {
@@ -302,7 +302,7 @@ export class reservationController {
       return res.status(500).json({ message: 'Error al obtener las reservaciones' });
     }
   }
-  static async getReservationsByRoomIdAndWeek(req, res) {
+  getReservationsByRoomIdAndWeek = async (req, res) =>{
     try {
       const { roomId } = req.params;
       const { startDate, endDate } = req.query;
@@ -311,7 +311,7 @@ export class reservationController {
         return res.status(400).json({ message: 'Sala, fecha de inicio y fecha de fin son requeridos' });
       }
 
-      const reservations = await reservationModel.getReservationsByRoomIdAndWeek({ roomId, startDate, endDate });
+      const reservations = await this.reservationModel.getReservationsByRoomIdAndWeek({ roomId, startDate, endDate });
 
       if (reservations.length === 0) {
         return res.status(404).json({ message: 'No hay reservaciones para esta sala en el rango de fechas especificado' });

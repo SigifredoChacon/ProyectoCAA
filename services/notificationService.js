@@ -1,28 +1,38 @@
-import { reservationModel } from '../models/postgresql/reservationModel.js';
-import { userModel } from "../models/postgresql/userModel.js";
 import { sendEmail } from './emailService.js';
 import moment from 'moment-timezone';
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import {cubicleModel} from "../models/postgresql/cubicleModel.js";
-import {RoomModel} from "../models/postgresql/roomModel.js";
 
-export async function notificationService() {
-    const threeDaysFromNow = moment().tz('America/Costa_Rica').add(3, 'days').format('YYYY-MM-DD');
-    try {
-        const upcomingReservations = await reservationModel.getByDate({ date: threeDaysFromNow });
 
-        if (upcomingReservations.length > 0) {
-            for (const reservation of upcomingReservations) {
-                const user = await userModel.getById({id: reservation.idUsuario});
-                const room = await RoomModel.getNameById({id: reservation.idSala});
-                const cubicle = await cubicleModel.getById({id: reservation.idCubiculo});
 
-                if (user) {
-                    const emailSubject = 'Recordatorio de Reservación';
-                    const formattedDate = format(new Date(reservation.Fecha), 'EEEE, dd MMMM yyyy', { locale: es });
 
-                    const emailText = `
+export function createNotificationService({
+                                              reservationModel,
+                                              userModel,
+                                              roomModel,
+                                              cubicleModel,
+                                              timezone = 'America/Costa_Rica'
+                                          }) {
+    if (!reservationModel || !userModel || !sendEmail) {
+        throw new Error('Faltan dependencias requeridas para notificationService.');
+    }
+
+    return async function run() {
+        const threeDaysFromNow = moment().tz(timezone).add(3, 'days').format('YYYY-MM-DD');
+        try {
+            const upcomingReservations = await reservationModel.getByDate({date: threeDaysFromNow});
+
+            if (upcomingReservations.length > 0) {
+                for (const reservation of upcomingReservations) {
+                    const user = await userModel.getById({id: reservation.idUsuario});
+                    const room = await roomModel.getNameById({id: reservation.idSala});
+                    const cubicle = await cubicleModel.getById({id: reservation.idCubiculo});
+
+                    if (user) {
+                        const emailSubject = 'Recordatorio de Reservación';
+                        const formattedDate = format(new Date(reservation.Fecha), 'EEEE, dd MMMM yyyy', {locale: es});
+
+                        const emailText = `
                     Hola ${user.Nombre}, este es un recordatorio de que usted tiene una reunión agendada en 3 días.
                     
                     Fecha: ${formattedDate}
@@ -32,7 +42,7 @@ export async function notificationService() {
                     Cubículo: ${cubicle ? `Cubículo ${cubicle.Nombre}` : 'N/A'}
                     `;
 
-                    const emailHtml = `
+                        const emailHtml = `
                     <div style="padding: 20px; background-color: #f4f4f4;">
                       <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); padding: 20px;">
                         <tr>
@@ -77,20 +87,21 @@ export async function notificationService() {
                     </div>
                     `;
 
-                    sendEmail(
-                        user.CorreoEmail,
-                        emailSubject,
-                        emailText,
-                        emailHtml
-                    );
-                } else {
-                    console.error(`No se encontró el usuario con ID ${reservation.idUsuario}`);
+                        sendEmail(
+                            user.CorreoEmail,
+                            emailSubject,
+                            emailText,
+                            emailHtml
+                        );
+                    } else {
+                        console.error(`No se encontró el usuario con ID ${reservation.idUsuario}`);
+                    }
                 }
+            } else {
+                console.log('No hay reservaciones a 3 días de realizarse.');
             }
-        } else {
-            console.log('No hay reservaciones a 3 días de realizarse.');
+        } catch (error) {
+            console.error('Error al revisar las reservaciones:', error);
         }
-    } catch (error) {
-        console.error('Error al revisar las reservaciones:', error);
-    }
+    };
 }
