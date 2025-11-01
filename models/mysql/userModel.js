@@ -26,7 +26,10 @@ export class userModel {
         JOIN 
             rol r ON u.idRol = r.idRol;`,
         )
-        return users
+        return users.map(({ Estado, ...rest }) => ({
+            ...rest,
+            Estado: Estado === 1
+        }));
     }
 
     static async getAllEmails() {
@@ -40,9 +43,9 @@ export class userModel {
         const { email, password} = input
         const [user] = await connection.query(
             `SELECT u.Contrasena, u.CedulaCarnet, u.Estado, r.nombre AS RolNombre
-     FROM usuario u
-     JOIN rol r ON u.idRol = r.idRol
-     WHERE u.CorreoEmail = ? OR u.CorreoInstitucional = ?`,
+                FROM usuario u
+                JOIN rol r ON u.idRol = r.idRol
+                WHERE u.CorreoEmail = ? OR u.CorreoInstitucional = ?`,
             [email, email]
         )
 
@@ -54,7 +57,13 @@ export class userModel {
         if (!isValid) {
             return null
         }
-        return user[0]
+
+        const u = user[0]
+
+        return {
+            ...u,
+            Estado: Number(u.Estado) === 1
+        };
     }
 
     static async getById ({ id }) {
@@ -65,7 +74,13 @@ export class userModel {
         if(user.length === 0) {
             return null
         }
-        return user[0]
+
+        const u = user[0]
+
+        return {
+            ...u,
+            Estado: Number(u.Estado) === 1
+        };
     }
 
 

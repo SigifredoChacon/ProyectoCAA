@@ -27,7 +27,12 @@ export class assetModel {
         JOIN
             categoria c on a.idCategoria = c.idCategoria;`,
         )
-        return assets
+
+        return assets.map(({ Condicion, ...rest }) => ({
+            ...rest,
+            Condicion: Condicion === 1
+        }));
+
     }
 
     static async getById ({ id }) {
@@ -39,7 +44,13 @@ export class assetModel {
             return null
         }
 
-        return asset[0]
+        const a = asset[0]
+
+        return {
+            ...a,
+            Condicion: Number(a.Condicion) === 1
+        };
+
     }
     static async getByCategory ({ id }) {
         const [assets] = await connection.query(
@@ -49,7 +60,13 @@ export class assetModel {
         if(assets.length === 0) {
             return null
         }
-        return assets
+
+        const a = asset[0]
+
+        return {
+            ...a,
+            Condicion: Number(a.Condicion) === 1
+        };
     }
 
     static async getFirstAvailableAsset ({ assetCategory }) {
@@ -190,7 +207,7 @@ export class assetModel {
         } = input
 
         try {
-            console.log(idEstado)
+
 
             if(idEstado != null){
 

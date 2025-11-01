@@ -15,9 +15,9 @@ export class ReservationController {
     const { page = 1, itemsPerPage = 10 } = req.query;
     try {
 
-      const { reservations, totalPages } = await this.reservationModel.getAll({ page: Number(page), itemsPerPage: Number(itemsPerPage) });
+      const { reservations, totalPages, totalReservations } = await this.reservationModel.getAll({ page: Number(page), itemsPerPage: Number(itemsPerPage) });
       if (reservations.length > 0) {
-        return res.json({ reservations, totalPages });
+        return res.json({ reservations, totalPages, totalReservations });
       }
       res.status(404).json({ message: 'No hay reservaciones' });
     } catch (error) {

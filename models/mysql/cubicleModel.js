@@ -13,7 +13,13 @@ export class cubicleModel {
         const [cubicles] = await connection.query(
             'SELECT * FROM cubiculo',
         )
-        return cubicles
+
+        return cubicles.map(({ Estado, Ventana, ...rest }) => ({
+            ...rest,
+            Estado: Estado === 1,
+            Ventana: Ventana ===1
+        }));
+
     }
 
     static async getById ({ id }) {
@@ -25,7 +31,14 @@ export class cubicleModel {
             return null
         }
 
-        return cubicle[0]
+        const c = cubicle[0]
+
+        return {
+            ...c,
+            Estado: Number(c.Estado) === 1,
+            Ventana: Number(c.Ventana) === 1
+        };
+
     }
 
     static async create ({ input }) {

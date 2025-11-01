@@ -1,3 +1,14 @@
+
+export const DBConfig = {
+    host: 'localhost',
+    user: 'root',
+    port: 3306,
+    password: 'root',
+    database: 'sistemacaa',
+};
+
+
+/*
 export const DBConfig = {
     host: 'localhost',
     user: 'postgres',
@@ -5,4 +16,6 @@ export const DBConfig = {
     password: 'root',
     database: 'sistemacaa_pg',
 };
+
+*/
 

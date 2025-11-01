@@ -25,29 +25,48 @@ export class reservationModel {
 
     // Obtener las reservaciones paginadas
     const [reservations] = await connection.query(
-        `SELECT 
-          r.idReservacion,
-          r.Fecha,
-          r.HoraInicio,
-          r.HoraFin,
-          r.idSala,
-          r.idCubiculo,
-          r.idUsuario,
-          r.EncuestaCompletada,
-          rr.idRecurso,
-          rec.nombre AS NombreRecurso,
-          r.Observaciones,
-          r.Refrigerio
-        FROM 
-          reservacion r
-        LEFT JOIN 
-          reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-        LEFT JOIN 
-          recursos rec ON rr.idRecurso = rec.idRecursos
-        WHERE 
-          r.Estado = 1 
-        ORDER BY r.idReservacion DESC
-        LIMIT ? OFFSET ?;`,
+        ` SELECT
+              r.idReservacion,
+              r.Fecha,
+              r.HoraInicio,
+              r.HoraFin,
+              r.idSala,
+              r.idCubiculo,
+              r.idUsuario,
+              r.EncuestaCompletada,
+              r.Observaciones,
+              r.Refrigerio,
+              IF(
+                      SUM(CASE WHEN rec.idRecursos IS NULL THEN 0 ELSE 1 END) = 0,
+                      JSON_ARRAY(),
+                      JSON_ARRAYAGG(
+                              JSON_OBJECT(
+                                      'idRecurso', rec.idRecursos,
+                                      'NombreRecurso', rec.Nombre
+                              )
+                      )
+              ) AS recursos
+          FROM reservacion r
+                   LEFT JOIN reservacion_recursos rr
+                             ON r.idReservacion = rr.idReservacion
+                   LEFT JOIN recursos rec
+                             ON rr.idRecurso = rec.idRecursos
+          WHERE r.Estado = 1
+          GROUP BY r.idReservacion
+          ORDER BY
+              CASE
+                  WHEN TIMESTAMP(r.Fecha, r.HoraInicio) >= NOW() THEN 0
+              ELSE 1
+        END,
+      CASE
+          WHEN TIMESTAMP(r.Fecha, r.HoraInicio) >= NOW()
+          THEN TIMESTAMP(r.Fecha, r.HoraInicio)
+        END ASC,
+      CASE
+          WHEN TIMESTAMP(r.Fecha, r.HoraInicio) < NOW()
+          THEN TIMESTAMP(r.Fecha, r.HoraInicio)
+        END DESC
+  LIMIT ? OFFSET ?;`,
         [itemsPerPage, offset]
     );
 
@@ -58,43 +77,10 @@ export class reservationModel {
       };
     }
 
-    const reservationIds = reservations.map(r => r.idReservacion);
-
-    // Obtener recursos
-    const [resources] = await connection.query(
-        `SELECT 
-          rr.idReservacion,
-          rr.idRecurso,
-          rec.nombre AS NombreRecurso
-        FROM 
-          reservacion_recursos rr
-        LEFT JOIN 
-          recursos rec ON rr.idRecurso = rec.idRecursos
-        WHERE 
-          rr.idReservacion IN (?);`,
-        [reservationIds]
-    );
-
-    const reservationMap = reservations.reduce((acc, reservation) => {
-      acc[reservation.idReservacion] = {
-        ...reservation,
-        recursos: []
-      };
-      return acc;
-    }, {});
-
-    resources.forEach(resource => {
-      if (reservationMap[resource.idReservacion]) {
-        reservationMap[resource.idReservacion].recursos.push({
-          idRecurso: resource.idRecurso,
-          NombreRecurso: resource.NombreRecurso
-        });
-      }
-    });
-
     return {
-      reservations: Object.values(reservationMap),
-      totalPages
+      reservations: reservations,
+      totalPages,
+      totalReservations:  totalCountResult[0].total
     };
   }
 
@@ -464,6 +450,8 @@ export class reservationModel {
 
     return reservations
   }
+
+
   static async getByUserIdCompleted({ id }) {
     const [reservations] = await connection.query(
       ` SELECT 
@@ -496,29 +484,49 @@ export class reservationModel {
 
     // Obtener las reservaciones paginadas
     const [reservations] = await connection.query(
-        `SELECT 
-          r.idReservacion,
-          r.Fecha,
-          r.HoraInicio,
-          r.HoraFin,
-          r.idSala,
-          r.idCubiculo,
-          r.idUsuario,
-          r.EncuestaCompletada,
-          rr.idRecurso,
-          rec.nombre AS NombreRecurso,
-          r.Observaciones,
-          r.Refrigerio
-        FROM 
-          reservacion r
-        LEFT JOIN 
-          reservacion_recursos rr ON r.idReservacion = rr.idReservacion
-        LEFT JOIN 
-          recursos rec ON rr.idRecurso = rec.idRecursos
-        WHERE 
-          r.Estado = 1 AND r.idUsuario = ?
-        ORDER BY r.idReservacion DESC
-        LIMIT ? OFFSET ?;`,
+        `SELECT
+             r.idReservacion,
+             r.Fecha,
+             r.HoraInicio,
+             r.HoraFin,
+             r.idSala,
+             r.idCubiculo,
+             r.idUsuario,
+             r.EncuestaCompletada,
+             r.Observaciones,
+             r.Refrigerio,
+             IF(
+                     SUM(CASE WHEN rec.idRecursos IS NULL THEN 0 ELSE 1 END) = 0,
+                     JSON_ARRAY(),
+                     JSON_ARRAYAGG(
+                             JSON_OBJECT(
+                                     'idRecurso', rec.idRecursos,
+                                     'NombreRecurso', rec.Nombre
+                             )
+                     )
+             ) AS recursos
+         FROM reservacion r
+                  LEFT JOIN reservacion_recursos rr
+                            ON r.idReservacion = rr.idReservacion
+                  LEFT JOIN recursos rec
+                            ON rr.idRecurso = rec.idRecursos
+         WHERE r.Estado = 1
+           AND r.idUsuario = ?
+         GROUP BY r.idReservacion
+         ORDER BY
+             CASE
+                 WHEN TIMESTAMP(r.Fecha, r.HoraInicio) >= NOW() THEN 0
+             ELSE 1
+        END,
+      CASE
+          WHEN TIMESTAMP(r.Fecha, r.HoraInicio) >= NOW()
+          THEN TIMESTAMP(r.Fecha, r.HoraInicio)
+        END ASC,
+      CASE
+          WHEN TIMESTAMP(r.Fecha, r.HoraInicio) < NOW()
+          THEN TIMESTAMP(r.Fecha, r.HoraInicio)
+        END DESC
+  LIMIT ? OFFSET ?;`,
         [userId, itemsPerPage, offset]
     );
 
@@ -529,42 +537,9 @@ export class reservationModel {
       };
     }
 
-    const reservationIds = reservations.map(r => r.idReservacion);
-
-    // Obtener recursos
-    const [resources] = await connection.query(
-        `SELECT 
-          rr.idReservacion,
-          rr.idRecurso,
-          rec.nombre AS NombreRecurso
-        FROM 
-          reservacion_recursos rr
-        LEFT JOIN 
-          recursos rec ON rr.idRecurso = rec.idRecursos
-        WHERE 
-          rr.idReservacion IN (?);`,
-        [reservationIds]
-    );
-
-    const reservationMap = reservations.reduce((acc, reservation) => {
-      acc[reservation.idReservacion] = {
-        ...reservation,
-        recursos: []
-      };
-      return acc;
-    }, {});
-
-    resources.forEach(resource => {
-      if (reservationMap[resource.idReservacion]) {
-        reservationMap[resource.idReservacion].recursos.push({
-          idRecurso: resource.idRecurso,
-          NombreRecurso: resource.NombreRecurso
-        });
-      }
-    });
 
     return {
-      reservations: Object.values(reservationMap),
+      reservations: reservations,
       totalPages
     };
   }

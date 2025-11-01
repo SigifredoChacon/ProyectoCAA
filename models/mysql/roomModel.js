@@ -11,7 +11,10 @@ export class roomModel {
         const [rooms] = await connection.query(
             'SELECT * FROM sala',
         )
-        return rooms
+        return rooms.map(({ Estado, ...rest }) => ({
+            ...rest,
+            Estado: Estado === 1
+        }));
     }
 
     static async getById ({ id }) {
@@ -23,7 +26,12 @@ export class roomModel {
             return null
         }
 
-        return room[0]
+        const r = room[0]
+
+        return {
+            ...r,
+            Estado: Number(r.Estado) === 1
+        };
     }
 
     static async getNameById ({ id }) {
@@ -35,7 +43,8 @@ export class roomModel {
             return null
         }
 
-        return room[0]
+        return room[0];
+
     }
 
     static async create({ input }) {

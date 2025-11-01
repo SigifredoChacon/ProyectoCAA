@@ -73,7 +73,8 @@ export class reservationModel {
 
         return {
             reservations,
-            totalPages
+            totalPages,
+            totalReservations: totalCountResult[0].total
         };
     }
 
