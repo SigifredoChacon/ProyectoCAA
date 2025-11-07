@@ -3,6 +3,7 @@ const { Pool } = pkg;
 import {DBConfig} from '../../DBConfig.js'
 import bcrypt from 'bcrypt'
 import {sendEmail} from "../../services/emailService.js";
+import {validatePassword} from "../../services/validatePasswordService.js";
 
 const pool = new Pool(DBConfig);
 
@@ -98,6 +99,12 @@ export class userModel {
         } = input;
 
         try {
+
+            //Validar contraseña
+            const { ok, errores } = validatePassword(contrasena);
+            if (!ok) {
+                throw new Error('Contraseña no válida: ' + errores.join(' '));
+            }
             // Validar cédula
             const { rows: resultCedula } = await pool.query(
                 `SELECT "CedulaCarnet" FROM "usuario" WHERE "CedulaCarnet" = $1;`,

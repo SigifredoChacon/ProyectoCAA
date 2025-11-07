@@ -2,10 +2,12 @@ import mysql from 'mysql2/promise'
 import {DBConfig} from '../../DBConfig.js'
 import bcrypt from 'bcrypt'
 import {sendEmail} from "../../services/emailService.js";
+import {validatePassword} from "../../services/validatePasswordService.js";
 
 const connection = await mysql.createConnection(DBConfig)
 
 export class userModel {
+
 
     static async getAll () {
         const [users] = await connection.query(
@@ -84,7 +86,6 @@ export class userModel {
     }
 
 
-    // En el modelo userModel.js
     static async create({ input }) {
         const {
             cedulaCarnet,
@@ -99,6 +100,12 @@ export class userModel {
         } = input;
 
         try {
+
+            const { ok, errores } = validatePassword(contrasena);
+            if (!ok) {
+                throw new Error('Contraseña no válida: ' + errores.join(' '));
+            }
+
             const [resultCedula] = await connection.query(
               'SELECT cedulaCarnet FROM usuario WHERE cedulaCarnet = ?',
               [cedulaCarnet]

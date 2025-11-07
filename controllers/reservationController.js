@@ -123,7 +123,9 @@ export class ReservationController {
       return res.status(400).json({error: JSON.parse(result.error.message)})
     }
     const newReservation= await this.reservationModel.create({input: req.body})
-    if(newReservation === false) return res.status(409).json({message: 'Dato repetido'})
+      if (typeof newReservation === "string") {
+          return res.status(409).json({ message: newReservation });
+      }
     res.status(201).json(newReservation)
   }
 

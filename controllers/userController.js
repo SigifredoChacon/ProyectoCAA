@@ -62,6 +62,8 @@ export class UserController {
     }
 
      register = async (req, res) =>{
+
+
         const result = validateUser(req.body);
         if (!result.success) {
             return res.status(400).json({ message: JSON.parse(result.error.message) });

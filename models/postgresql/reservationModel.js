@@ -571,7 +571,35 @@ export class reservationModel {
     } = input;
 
     try {
-      const fechaToDate = new Date(fecha);
+
+        if ((!idSala && !idCubiculo) || (idSala && idCubiculo)) {
+            throw new Error ('Debes seleccionar una sala O un cubículo (solo uno).');
+        }
+        if (!horaInicio || !horaFin) throw new Error ('Faltan horaInicio/horaFin.');
+        if (horaInicio >= horaFin) throw new Error ('La hora de fin debe ser mayor que la de inicio.');
+
+
+        const esSala = !!idSala;
+        const espacioWhere = esSala ? '"idSala" = $2' : ' "idCubiculo" = $2';
+        const espacioId = esSala ? idSala : idCubiculo;
+
+        const {rows: conflicts} = await pool.query(
+
+            `SELECT "idReservacion", "HoraInicio", "HoraFin"
+                            FROM "reservacion"
+                            WHERE "Fecha" = $1
+                            AND ${espacioWhere}
+                            AND "Estado" = true
+                            AND "HoraInicio" < $3 
+                            AND "HoraFin" > $4
+                            FOR UPDATE;`, [fecha,espacioId,horaFin,horaInicio]
+
+        )
+
+        if (conflicts.length > 0) {
+            const c = conflicts[0];
+            throw new Error(`Ya existe una reservación en esa fecha y espacio.`);
+        }
 
       // Insertar reservación y devolver la fila insertada
       const { rows: result } = await pool.query(
@@ -684,7 +712,7 @@ Observaciones: ${observaciones || 'Ninguna'}
 
       return reservationDetails;
     } catch (error) {
-      throw new Error(error);
+        return error.message;
     }
   }
 

@@ -569,133 +569,160 @@ export class reservationModel {
 
     try {
 
-
-      const fechaToDate = new Date(fecha)
-
-      const [result] = await connection.query(
-        'INSERT INTO reservacion (Fecha,HoraInicio,HoraFin,idSala,idCubiculo,idUsuario,Observaciones,Refrigerio, Estado, EncuestaCompletada) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        [fechaToDate, horaInicio, horaFin, idSala, idCubiculo, idUsuario, observaciones, refrigerio, estado, encuestaCompletada]
-      )
-
-      const [userDetails] = await connection.query(
-          'SELECT Nombre, CorreoEmail FROM Usuario WHERE CedulaCarnet = ?',
-          [idUsuario]
-      );
+                    if ((!idSala && !idCubiculo) || (idSala && idCubiculo)) {
+                        throw new Error ('Debes seleccionar una sala O un cubículo (solo uno).');
+                    }
+                    if (!horaInicio || !horaFin) throw new Error ('Faltan horaInicio/horaFin.');
+                    if (horaInicio >= horaFin) throw new Error ('La hora de fin debe ser mayor que la de inicio.');
 
 
-      const[cubicleDetails] = await connection.query(
-          'SELECT Nombre FROM Cubiculo WHERE idCubiculo = ?',
-          [idCubiculo]
-        );
+                    const esSala = !!idSala;
+                    const espacioWhere = esSala ? 'idSala = ?' : 'idCubiculo = ?';
+                    const espacioId = esSala ? idSala : idCubiculo;
 
+                    const [conflicts] = await connection.query(
 
+                        `SELECT idReservacion, HoraInicio, HoraFin
+                            FROM reservacion
+                            WHERE Fecha = ?
+                            AND ${espacioWhere}
+                            AND Estado = 1
+                            AND (HoraInicio < ? AND HoraFin > ?)
+                            FOR UPDATE`, [fecha,espacioId,horaFin,horaInicio]
 
-      const[roomDetails] = await connection.query(
-            'SELECT Nombre FROM Sala WHERE idSala = ?',
-            [idSala]
-        );
+                    )
 
-      if (userDetails.length > 0 && estado) {
-
-
-        const { Nombre, CorreoEmail } = userDetails[0];
-
-
-        const [reservation] = await connection.query(
-            `SELECT *
-         FROM reservacion WHERE idReservacion = LAST_INSERT_ID();`
-        );
-
-
-        const reservationDetails = reservation[0];
-        const emailSubject = 'Confirmación de Reservación';
-        const emailText = `
-      Hola ${Nombre},
-      
-      Se ha realizado una nueva reservación con los siguientes detalles:
-      Fecha: ${reservationDetails.Fecha}
-      Hora de Inicio: ${reservationDetails.HoraInicio}
-      Hora de Fin: ${reservationDetails.HoraFin}
-      Sala: ${idSala ? `Sala ${roomDetails[0].Nombre}` : 'N/A'}
-      Cubículo: ${idCubiculo ? `Cubículo ${cubicleDetails[0].Nombre}` : 'N/A'}
-      Observaciones: ${observaciones || 'Ninguna'}
-    `;
-
-        const formattedDate = format(new Date(reservationDetails.Fecha), 'EEEE, dd MMMM yyyy', { locale: es });
-
-        const emailHtml = `
-<div style="padding: 20px; background-color: #f4f4f4;">
-  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); padding: 20px;">
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <!-- Contenedor del Logo Centrador -->
-        <table border="0" cellpadding="0" cellspacing="0" style="text-align: center;">
-          <tr>
-            <!-- Texto "TEC" -->
-            <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 36px; font-weight: bold;">
-              TEC
-            </td>
-            <!-- Línea Roja Separadora -->
-            <td style="width: 5px; background-color: #c1272d;"></td>
-            <!-- Texto "Tecnológico de Costa Rica" -->
-            <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 18px;">
-              Centro Academico<br>de Alajuela
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <!-- Asunto -->
-        <h1 style="font-size: 24px; font-weight: bold; color: #333; margin: 0;">${emailSubject}</h1>
-      </td>
-    </tr>
-    <tr>
-      <td align="center" style="padding: 10px 0;">
-        <!-- Detalles de la reservación -->
-        <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
-          Se ha realizado una nueva reservación con los siguientes detalles:
-        </p>
-        <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
-          <strong>Fecha:</strong> ${formattedDate}<br>
-          <strong>Hora de Inicio:</strong> ${reservationDetails.HoraInicio}<br>
-          <strong>Hora de Fin:</strong> ${reservationDetails.HoraFin}<br>
-          ${idSala ? `<strong>Sala:</strong> ${roomDetails[0].Nombre}<br>` : ''}
-          ${idCubiculo ? `<strong>Cubículo:</strong>  ${cubicleDetails[0].Nombre}<br>` : ''}
-          ${observaciones ? `<strong>Observaciones:</strong> ${observaciones}<br>` : ''} 
-          ${refrigerio ? '<strong>Refrigerio:</strong> Sí (Según disponibilidad)' : ''}
-        </p>
-      </td>
-    </tr>
-  </table>
-</div>
-`;
-
-        sendEmail(
-            CorreoEmail,
-            emailSubject,
-            emailText,
-            emailHtml
-        );
-      }
+                    if (conflicts.length > 0) {
+                        const c = conflicts[0];
+                        throw new Error(`Ya existe una reservación en esa fecha y espacio.`);
+                    }
 
 
 
+                  const [result] = await connection.query(
+                    'INSERT INTO reservacion (Fecha,HoraInicio,HoraFin,idSala,idCubiculo,idUsuario,Observaciones,Refrigerio, Estado, EncuestaCompletada) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                    [fecha, horaInicio, horaFin, idSala, idCubiculo, idUsuario, observaciones, refrigerio, estado, encuestaCompletada]
+                  )
 
-      if (Array.isArray(idRecursos) && idRecursos.length > 0) {
-        const insertPromises = idRecursos.map(idRecurso => {
-          return connection.query(
-            'INSERT INTO reservacion_recursos (idReservacion, idRecurso) VALUES (?, ?)',
-            [result.insertId, idRecurso]
-          );
-        });
-        await Promise.all(insertPromises);
-      }
+                  const [userDetails] = await connection.query(
+                      'SELECT Nombre, CorreoEmail FROM Usuario WHERE CedulaCarnet = ?',
+                      [idUsuario]
+                  );
+
+
+                  const[cubicleDetails] = await connection.query(
+                      'SELECT Nombre FROM Cubiculo WHERE idCubiculo = ?',
+                      [idCubiculo]
+                    );
+
+
+
+                  const[roomDetails] = await connection.query(
+                        'SELECT Nombre FROM Sala WHERE idSala = ?',
+                        [idSala]
+                    );
+
+                  if (userDetails.length > 0 && estado) {
+
+
+                    const { Nombre, CorreoEmail } = userDetails[0];
+
+
+                    const [reservation] = await connection.query(
+                        `SELECT *
+                     FROM reservacion WHERE idReservacion = LAST_INSERT_ID();`
+                    );
+
+
+                    const reservationDetails = reservation[0];
+                    const emailSubject = 'Confirmación de Reservación';
+                    const emailText = `
+                  Hola ${Nombre},
+                  
+                  Se ha realizado una nueva reservación con los siguientes detalles:
+                  Fecha: ${reservationDetails.Fecha}
+                  Hora de Inicio: ${reservationDetails.HoraInicio}
+                  Hora de Fin: ${reservationDetails.HoraFin}
+                  Sala: ${idSala ? `Sala ${roomDetails[0].Nombre}` : 'N/A'}
+                  Cubículo: ${idCubiculo ? `Cubículo ${cubicleDetails[0].Nombre}` : 'N/A'}
+                  Observaciones: ${observaciones || 'Ninguna'}
+                `;
+
+                    const formattedDate = format(new Date(reservationDetails.Fecha), 'EEEE, dd MMMM yyyy', { locale: es });
+
+                    const emailHtml = `
+            <div style="padding: 20px; background-color: #f4f4f4;">
+              <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); padding: 20px;">
+                <tr>
+                  <td align="center" style="padding: 20px 0;">
+                    <!-- Contenedor del Logo Centrador -->
+                    <table border="0" cellpadding="0" cellspacing="0" style="text-align: center;">
+                      <tr>
+                        <!-- Texto "TEC" -->
+                        <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 36px; font-weight: bold;">
+                          TEC
+                        </td>
+                        <!-- Línea Roja Separadora -->
+                        <td style="width: 5px; background-color: #c1272d;"></td>
+                        <!-- Texto "Tecnológico de Costa Rica" -->
+                        <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 18px;">
+                          Centro Academico<br>de Alajuela
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding: 20px 0;">
+                    <!-- Asunto -->
+                    <h1 style="font-size: 24px; font-weight: bold; color: #333; margin: 0;">${emailSubject}</h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding: 10px 0;">
+                    <!-- Detalles de la reservación -->
+                    <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
+                      Se ha realizado una nueva reservación con los siguientes detalles:
+                    </p>
+                    <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
+                      <strong>Fecha:</strong> ${formattedDate}<br>
+                      <strong>Hora de Inicio:</strong> ${reservationDetails.HoraInicio}<br>
+                      <strong>Hora de Fin:</strong> ${reservationDetails.HoraFin}<br>
+                      ${idSala ? `<strong>Sala:</strong> ${roomDetails[0].Nombre}<br>` : ''}
+                      ${idCubiculo ? `<strong>Cubículo:</strong>  ${cubicleDetails[0].Nombre}<br>` : ''}
+                      ${observaciones ? `<strong>Observaciones:</strong> ${observaciones}<br>` : ''} 
+                      ${refrigerio ? '<strong>Refrigerio:</strong> Sí (Según disponibilidad)' : ''}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            `;
+
+                    sendEmail(
+                        CorreoEmail,
+                        emailSubject,
+                        emailText,
+                        emailHtml
+                    );
+                  }
+
+
+
+
+                  if (Array.isArray(idRecursos) && idRecursos.length > 0) {
+                    const insertPromises = idRecursos.map(idRecurso => {
+                      return connection.query(
+                        'INSERT INTO reservacion_recursos (idReservacion, idRecurso) VALUES (?, ?)',
+                        [result.insertId, idRecurso]
+                      );
+                    });
+                    await Promise.all(insertPromises);
+                  }
     }
 
     catch (error) {
-      throw new Error(error);
+      return error.message;
     }
 
     const [reservation] = await connection.query(
