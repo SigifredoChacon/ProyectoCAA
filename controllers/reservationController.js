@@ -87,7 +87,8 @@ export class ReservationController {
 
   getByUserId = async (req, res) =>{
     const { userId } = req.params;
-    const { page = 1, itemsPerPage = 10 } = req.query; // Extrae page y itemsPerPage desde query params
+    const { page = 1, itemsPerPage = 10 } = req.query;
+    const requester = req.user;
 
     if (!userId) {
       return res.status(400).json({ message: 'ID de usuario no proporcionado' });
@@ -95,13 +96,17 @@ export class ReservationController {
 
     try {
 
-      const { reservations, totalPages } = await this.reservationModel.getByUserId({ userId, page: Number(page), itemsPerPage: Number(itemsPerPage) });
-      if (reservations.length > 0) {
-        return res.json({ reservations, totalPages });
+      if(parseInt(requester.id) !== parseInt(userId) && !['Administrador', 'AdministradorReservaciones'].includes(requester.role)){
+
+          return res.status(403).json({ message: 'No tienes permiso para ver las reservaciones de este usuario' });
       }
-      res.status(404).json({ message: 'No hay reservaciones asignadas a este usuario' });
+
+      const { reservations, totalPages } = await this.reservationModel.getByUserId({ userId, page: Number(page), itemsPerPage: Number(itemsPerPage) });
+
+      res.status(200).json({ reservations, totalPages });
+
     } catch (error) {
-      console.error('Error obteniendo las reservaciones:', error);
+
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
@@ -139,7 +144,7 @@ export class ReservationController {
       return res.status(400).json({ message: 'No se puede eliminar una reservación que ya ha finalizado' });
     }
 
-    if (requester.id !== reservation.idUsuario && !['Administrador', 'AdministradorReservaciones'].includes(requester.role)) {
+    if (parseInt(requester.id) !== parseInt(reservation.idUsuario) && !['Administrador', 'AdministradorReservaciones'].includes(requester.role)) {
       return res.status(403).json({ message: 'No tienes permiso para eliminar esta reservación' });
     }
 

@@ -21,7 +21,6 @@ export const sendEmail = (to, subject, text, html) => {
         if (error) {
             console.log('Error al enviar correo: ', error);
         } else {
-            console.log('Correo enviado: ' + info.response);
         }
     });
 };

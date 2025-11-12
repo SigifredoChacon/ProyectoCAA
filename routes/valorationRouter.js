@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ValorationController } from '../controllers/valorationController.js';
 import { verifyToken, requireRole } from "../middlewares/authMiddleware.js";
+import {perUserWriteLimiter} from "../middlewares/rateLimiters.js";
 
 
 export const createValorationRouter = ({valorationModel, reservationModel}) => {
@@ -10,7 +11,7 @@ export const createValorationRouter = ({valorationModel, reservationModel}) => {
     const valorationController = new ValorationController({valorationModel, reservationModel});
 
     // Crear una nueva valoración
-    valorationRouter.post('/',verifyToken, valorationController.create);
+    valorationRouter.post('/',verifyToken, perUserWriteLimiter, valorationController.create);
 
     // Obtener todas las valoraciones
     valorationRouter.get('/', verifyToken,requireRole(["Administrador","AdministradorReservaciones"]),valorationController.getAll);

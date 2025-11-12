@@ -15,7 +15,9 @@ import multer from 'multer';
 import cron from 'node-cron';
 import {createNotificationService} from './services/notificationService.js';
 import { createValorationRouter } from './routes/valorationRouter.js'
+import { createUserCleanupService } from './services/userCleanupService.js';
 import * as path from "node:path";
+import {apiLimiter} from "./middlewares/rateLimiters.js";
 
 
 export const createApp = ({
@@ -31,18 +33,23 @@ export const createApp = ({
     valorationModel,
     resourceModel
 }) => {
+
+
     const app = express();
+    app.set('trust proxy', 1);
     app.use((req, res, next) => {
         res.header('Access-Control-Allow-Origin', '*');
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
         res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         next();
     });
-    app.use(express.json());
+    app.use(express.json({limit: '200kb'}));
     app.disable('x-powered-by');
 
     const storage = multer.memoryStorage();
     const upload = multer({storage});
+
+    app.use(apiLimiter);
 
     app.use('/rooms', upload.single('imagen'), createRoomRouter({roomModel}));
     app.use('/cubicles', createCubicleRouter({cubicleModel}));
@@ -64,13 +71,28 @@ export const createApp = ({
         timezone: 'America/Costa_Rica'
     });
 
+    const runUserCleanup = createUserCleanupService({
+        userModel,
+        maxAgeDays: 7
+    });
+
 
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
     cron.schedule('30 14 * * *', () => {
         runNotifications();
     }, {
         timezone: "America/Costa_Rica"
     });
+
+    cron.schedule('15 3 * * *', () => {
+        runUserCleanup();
+    }, {
+        timezone: "America/Costa_Rica"
+    });
+
+
+
     app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
     const PORT = process.env.PORT ?? 3000;
 

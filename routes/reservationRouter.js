@@ -1,6 +1,7 @@
 import {Router} from 'express';
 import {ReservationController} from "../controllers/reservationController.js";
 import { verifyToken, requireRole } from "../middlewares/authMiddleware.js";
+import {perUserWriteLimiter} from "../middlewares/rateLimiters.js";
 
 
 
@@ -12,7 +13,7 @@ export const createReservationRouter = ({reservationModel,roomModel, cubicleMode
 
     reservationRouter.get('/', reservationController.getAll)
     reservationRouter.get('/pending', verifyToken, requireRole(["Administrador","AdministradorReservaciones"]), reservationController.getAllPendingReservations)
-    reservationRouter.post('/',verifyToken, reservationController.create)
+    reservationRouter.post('/',verifyToken, perUserWriteLimiter, reservationController.create)
     reservationRouter.get('/getbyDate/:date',reservationController.getByDate)
     reservationRouter.get('/getbyRoomId/:roomId',reservationController.getByRoomId)
     reservationRouter.get('/getbyCubicleId/:cubicleId',reservationController.getByCubicleId)
@@ -27,8 +28,8 @@ export const createReservationRouter = ({reservationModel,roomModel, cubicleMode
 
     reservationRouter.get('/:id',reservationController.getById)
     reservationRouter.delete('/deleteByDate/:date',verifyToken,requireRole(["Administrador","AdministradorReservaciones"]), reservationController.deleteByDate)
-    reservationRouter.delete('/:id',verifyToken, reservationController.delete)
-    reservationRouter.patch('/:id',verifyToken, reservationController.update)
+    reservationRouter.delete('/:id',verifyToken, perUserWriteLimiter, reservationController.delete)
+    reservationRouter.patch('/:id',verifyToken, perUserWriteLimiter, reservationController.update)
 
     return reservationRouter;
 }

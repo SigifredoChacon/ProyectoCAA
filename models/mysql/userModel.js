@@ -44,7 +44,7 @@ export class userModel {
     static async login ({ input }) {
         const { email, password} = input
         const [user] = await connection.query(
-            `SELECT u.Contrasena, u.CedulaCarnet, u.Estado, r.nombre AS RolNombre
+            `SELECT u.Contrasena, u.CedulaCarnet, u.Estado, u.EmailVerificado, u.CorreoEmail, r.nombre AS RolNombre
                 FROM usuario u
                 JOIN rol r ON u.idRol = r.idRol
                 WHERE u.CorreoEmail = ? OR u.CorreoInstitucional = ?`,
@@ -64,13 +64,14 @@ export class userModel {
 
         return {
             ...u,
-            Estado: Number(u.Estado) === 1
+            Estado: Number(u.Estado) === 1,
+            EmailVerificado: Number(u.EmailVerificado) === 1
         };
     }
 
     static async getById ({ id }) {
         const [user] = await connection.query(
-            'SELECT * FROM Usuario WHERE CedulaCarnet = ?',
+            'SELECT CedulaCarnet, Nombre, CorreoEmail, CorreoInstitucional, Telefono, Telefono2, Direccion FROM Usuario WHERE CedulaCarnet = ?',
             [id]
         )
         if(user.length === 0) {
@@ -144,9 +145,14 @@ export class userModel {
 
             const hashedPassword = await bcrypt.hash(contrasena, 10);
 
+            const verificationCode = String(
+                Math.floor(100000 + Math.random() * 900000)
+            );
+            const expirationDate = new Date(Date.now() + 15 * 60 * 1000);
+
             await connection.query(
-              'INSERT INTO usuario (CedulaCarnet, Nombre, CorreoEmail, CorreoInstitucional, Contrasena, Telefono, Telefono2, Direccion, Estado, idRol) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-              [cedulaCarnet, nombre, correoEmail, correoInstitucional, hashedPassword, telefono, telefono2, direccion, false, idRol]
+              'INSERT INTO usuario (CedulaCarnet, Nombre, CorreoEmail, CorreoInstitucional, Contrasena, Telefono, Telefono2, Direccion, Estado, idRol, EmailVerificado, CodigoVerificacion, CodigoVerificacionExpira) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              [cedulaCarnet, nombre, correoEmail, correoInstitucional, hashedPassword, telefono, telefono2, direccion, false, idRol, false, verificationCode, expirationDate]
             );
 
             const [user] = await connection.query(
@@ -156,7 +162,7 @@ export class userModel {
 
             return user[0];
         } catch (error) {
-            return error.message; // Retorna el mensaje de error
+            return error.message;
         }
     }
 
@@ -240,19 +246,20 @@ export class userModel {
             return error.message;
         }
     }
-    static async updatePassword({ id }) {
+    static async updatePassword({ id, email }) {
         try {
 
             const [userDetails] = await connection.query(
                 `SELECT Usuario.Nombre, Usuario.CorreoEmail
-             FROM Usuario
-             INNER JOIN Rol ON Usuario.idRol = Rol.idRol
-             WHERE CedulaCarnet = ?;`,
-                [id]
+                 FROM Usuario
+                 WHERE CedulaCarnet = ?
+                     AND CorreoEmail = ?
+                    OR CorreoInstitucional = ?;`,
+                [id, email, email]
             );
 
             if (userDetails.length === 0) {
-                throw new Error('No se encontró el usuario con ese id');
+                return true;
             }
 
             const emailSubject = 'Recuperación de contraseña';
@@ -282,7 +289,7 @@ export class userModel {
             );
 
             if (result.affectedRows === 0) {
-                throw new Error('No se encontró el usuario con ese id');
+                return true;
             }
 
             // Enviar el correo con la nueva contraseña
@@ -291,47 +298,46 @@ export class userModel {
                 Hola ${Nombre},
 
                 Hemos recibido una solicitud de recuperación de contraseña. 
-                Tu nueva contraseña temporal es: ${newPassword}
+            
                 
-                Por favor, cambia tu contraseña después de iniciar sesión.
             `;
 
                 const emailHtml = `
-<div style="padding: 20px; background-color: #f4f4f4;">
-  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); padding: 20px;">
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <table border="0" cellpadding="0" cellspacing="0" style="text-align: center;">
-          <tr>
-            <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 36px; font-weight: bold;">
-              TEC
-            </td>
-            <td style="width: 5px; background-color: #c1272d;"></td>
-            <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 18px;">
-              Centro Académico<br>de Alajuela
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <h1 style="font-size: 24px; font-weight: bold; color: #333; margin: 0;">${emailSubject}</h1>
-      </td>
-    </tr>
-    <tr>
-      <td align="center" style="padding: 10px 0;">
-        <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
-          Hola ${Nombre}, hemos recibido una solicitud de recuperación de contraseña. Tu nueva contraseña temporal es: <strong>${newPassword}</strong>
-        </p>
-        <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
-          Por favor, cambia tu contraseña después de iniciar sesión.
-        </p>
-      </td>
-    </tr>
-  </table>
-</div>
-`;
+                <div style="padding: 20px; background-color: #f4f4f4;">
+                  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); padding: 20px;">
+                    <tr>
+                      <td align="center" style="padding: 20px 0;">
+                        <table border="0" cellpadding="0" cellspacing="0" style="text-align: center;">
+                          <tr>
+                            <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 36px; font-weight: bold;">
+                              TEC
+                            </td>
+                            <td style="width: 5px; background-color: #c1272d;"></td>
+                            <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 18px;">
+                              Centro Académico<br>de Alajuela
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td align="center" style="padding: 20px 0;">
+                        <h1 style="font-size: 24px; font-weight: bold; color: #333; margin: 0;">${emailSubject}</h1>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td align="center" style="padding: 10px 0;">
+                        <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
+                          Hola ${Nombre}, hemos recibido una solicitud de recuperación de contraseña. Tu nueva contraseña temporal es: <strong>${newPassword}</strong>
+                        </p>
+                        <p style="font-size: 16px; color: #555; line-height: 1.5; margin: 0; text-align: justify;">
+                          Por favor, cambia tu contraseña después de iniciar sesión.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+                `;
 
                 // Enviar el correo
                 sendEmail(
@@ -342,18 +348,124 @@ export class userModel {
                 );
             });
 
-            // Retornar el resultado del usuario actualizado
-            const [updatedUser] = await connection.query(
-                `SELECT *
-             FROM Usuario WHERE CedulaCarnet = ?;`,
-                [id]
-            );
 
-            return updatedUser[0];
+            return true;
         } catch (error) {
             return error.message;
         }
     }
+
+    static async verifyEmail({ cedulaCarnet, codigo }) {
+        try {
+            const [rows] = await connection.query(
+                `SELECT EmailVerificado, CodigoVerificacion, CodigoVerificacionExpira
+             FROM usuario
+             WHERE CedulaCarnet = ?`,
+                [cedulaCarnet]
+            );
+
+            if (rows.length === 0) {
+                throw new Error('Usuario no encontrado');
+            }
+
+            const user = rows[0];
+
+            if (Number(user.EmailVerificado) === 1) {
+                throw new Error('El correo ya está verificado');
+            }
+
+            if (!user.CodigoVerificacion || !user.CodigoVerificacionExpira) {
+                throw new Error('No hay un código de verificación activo');
+            }
+
+            const now = new Date();
+            const exp = new Date(user.CodigoVerificacionExpira);
+            if (exp < now) {
+                throw new Error('El código de verificación ha expirado');
+            }
+
+            if (user.CodigoVerificacion !== codigo) {
+                throw new Error('Código de verificación incorrecto');
+            }
+
+            await connection.query(
+                `UPDATE usuario
+             SET EmailVerificado = 1,
+                 CodigoVerificacion = NULL,
+                 CodigoVerificacionExpira = NULL
+             WHERE CedulaCarnet = ?`,
+                [cedulaCarnet]
+            );
+
+            const [updated] = await connection.query(
+                `SELECT * FROM usuario WHERE CedulaCarnet = ?`,
+                [cedulaCarnet]
+            );
+
+            return updated[0];
+        } catch (err) {
+            return err.message;
+        }
+    }
+
+    static async generateNewVerificationCode({ cedulaCarnet }) {
+        try {
+            const [rows] = await connection.query(
+                `SELECT Nombre, CorreoEmail, EmailVerificado
+             FROM usuario
+             WHERE CedulaCarnet = ?`,
+                [cedulaCarnet]
+            );
+
+            if (rows.length === 0) {
+                throw new Error('Usuario no encontrado');
+            }
+
+            const user = rows[0];
+
+            if (Number(user.EmailVerificado) === 1) {
+                throw new Error('El correo ya está verificado');
+            }
+
+            const verificationCode = String(
+                Math.floor(100000 + Math.random() * 900000)
+            );
+            const expirationDate = new Date(Date.now() + 15 * 60 * 1000);
+
+            await connection.query(
+                `UPDATE usuario
+             SET CodigoVerificacion = ?, CodigoVerificacionExpira = ?
+             WHERE CedulaCarnet = ?`,
+                [verificationCode, expirationDate, cedulaCarnet]
+            );
+
+            return {
+                ...user,
+                CodigoVerificacion: verificationCode
+            };
+        } catch (err) {
+            return err.message;
+        }
+    }
+
+
+    static async deleteOldUnverified({ maxAgeDays = 7 }) {
+        try {
+            const [result] = await connection.query(
+                `DELETE FROM usuario
+             WHERE EmailVerificado = 0
+               AND FechaCreacion < NOW() - INTERVAL ? DAY`,
+                [maxAgeDays]
+            );
+
+            return result.affectedRows;
+        } catch (error) {
+            console.error('Error eliminando usuarios no verificados antiguos:', error);
+            throw error;
+        }
+    }
+
+
 
 
 }

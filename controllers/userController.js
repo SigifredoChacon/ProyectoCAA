@@ -88,11 +88,187 @@ export class UserController {
             return res.status(409).json({ message: newUser });
         }
 
-        res.status(201).json(newUser);
+         try {
+             const emailSubject = 'Verificación de cuenta - Sistema de Reservas CAA';
+             const emailText = `
+                                        Hola ${newUser.Nombre},
+                                        
+                                        Tu código de verificación es: ${newUser.CodigoVerificacion}
+                                        
+                                        Este código es válido por 15 minutos.
+                                        
+                                        Si tú no creaste esta cuenta, puedes ignorar este correo.
+                                                `;
+
+             const emailHtml = `
+                                        <div style="padding: 20px; background-color: #f4f4f4;">
+                                          <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+                                                 style="max-width: 600px; background-color: white; border-radius: 10px;
+                                                        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); padding: 20px;">
+                                            <tr>
+                                              <td align="center" style="padding: 20px 0;">
+                                                <table border="0" cellpadding="0" cellspacing="0" style="text-align: center;">
+                                                  <tr>
+                                                    <td style="background-color: #ffffff; padding: 10px 20px; color: #000000;
+                                                               font-family: 'Georgia', serif; font-size: 36px; font-weight: bold;">
+                                                      TEC
+                                                    </td>
+                                                    <td style="width: 5px; background-color: #c1272d;"></td>
+                                                    <td style="background-color: #ffffff; padding: 10px 20px; color: #000000;
+                                                               font-family: 'Georgia', serif; font-size: 18px;">
+                                                      Centro Académico<br>de Alajuela
+                                                    </td>
+                                                  </tr>
+                                                </table>
+                                              </td>
+                                            </tr>
+                                            <tr>
+                                              <td align="center" style="padding: 20px 0;">
+                                                <h1 style="font-size: 24px; font-weight: bold; color: #333; margin: 0;">
+                                                  Verificación de correo electrónico
+                                                </h1>
+                                              </td>
+                                            </tr>
+                                            <tr>
+                                              <td style="padding: 10px 0;">
+                                                <p style="font-size: 16px; color: #555; line-height: 1.5; text-align: justify;">
+                                                  Hola <strong>${newUser.Nombre}</strong>, gracias por registrarte en el sistema de reservación del CAA.
+                                                </p>
+                                                <p style="font-size: 16px; color: #555; line-height: 1.5; text-align: justify;">
+                                                  Tu código de verificación es:
+                                                </p>
+                                                <p style="font-size: 28px; font-weight: bold; color: #c1272d; letter-spacing: 4px; text-align: center;">
+                                                  ${newUser.CodigoVerificacion}
+                                                </p>
+                                                <p style="font-size: 14px; color: #777; line-height: 1.5; text-align: justify;">
+                                                  Este código es válido por 15 minutos. Ingresa el código en la página para activar tu cuenta.
+                                                </p>
+                                              </td>
+                                            </tr>
+                                          </table>
+                                        </div>
+             `;
+
+             await sendEmail(
+                 newUser.CorreoEmail,
+                 emailSubject,
+                 emailText,
+                 emailHtml
+             );
+         } catch (e) {
+             console.error('Error enviando correo de verificación:', e);
+
+         }
+
+         return res.status(201).json({
+             message: 'Usuario registrado. Revisa tu correo para verificar la cuenta.',
+             cedulaCarnet: newUser.CedulaCarnet,
+             correoEmail: newUser.CorreoEmail
+         });
+    }
+
+    verifyEmail = async (req, res) => {
+        const { cedulaCarnet, codigo } = req.body;
+
+        if (!cedulaCarnet || !codigo) {
+            return res.status(400).json({ message: 'Cédula y código son requeridos' });
+        }
+
+        const result = await this.userModel.verifyEmail({ cedulaCarnet, codigo });
+
+        if (typeof result === 'string') {
+            return res.status(400).json({ message: result });
+        }
+
+        return res.json({ message: 'Correo verificado correctamente' });
+    }
+
+    resendVerificationCode = async (req, res) => {
+        const { cedulaCarnet } = req.body;
+
+        if (!cedulaCarnet) {
+            return res.status(400).json({ message: 'Cédula es requerida' });
+        }
+
+        const result = await this.userModel.generateNewVerificationCode({ cedulaCarnet });
+
+        if (typeof result === 'string') {
+            return res.status(400).json({ message: result });
+        }
+
+        const { Nombre, CorreoEmail, CodigoVerificacion } = result;
+
+        const emailSubject = 'Nuevo código de verificación';
+        const emailText = `
+                                    Hola ${Nombre},
+                                    
+                                    Tu nuevo código de verificación es: ${CodigoVerificacion}
+                                    
+                                    Este código es válido por 15 minutos.
+                                        `;
+
+        const emailHtml = `
+                                        <div style="padding: 20px; background-color: #f4f4f4;">
+                                          <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+                                                 style="max-width: 600px; background-color: white; border-radius: 10px;
+                                                        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); padding: 20px;">
+                                            <tr>
+                                              <td align="center" style="padding: 20px 0;">
+                                                <table border="0" cellpadding="0" cellspacing="0" style="text-align: center;">
+                                                  <tr>
+                                                    <td style="background-color: #ffffff; padding: 10px 20px; color: #000000;
+                                                               font-family: 'Georgia', serif; font-size: 36px; font-weight: bold;">
+                                                      TEC
+                                                    </td>
+                                                    <td style="width: 5px; background-color: #c1272d;"></td>
+                                                    <td style="background-color: #ffffff; padding: 10px 20px; color: #000000;
+                                                               font-family: 'Georgia', serif; font-size: 18px;">
+                                                      Centro Académico<br>de Alajuela
+                                                    </td>
+                                                  </tr>
+                                                </table>
+                                              </td>
+                                            </tr>
+                                            <tr>
+                                              <td align="center" style="padding: 20px 0;">
+                                                <h1 style="font-size: 24px; font-weight: bold; color: #333; margin: 0;">
+                                                  Verificación de correo electrónico
+                                                </h1>
+                                              </td>
+                                            </tr>
+                                            <tr>
+                                              <td style="padding: 10px 0;">
+                                                <p style="font-size: 16px; color: #555; line-height: 1.5; text-align: justify;">
+                                                  Hola <strong>${Nombre}</strong>, gracias por registrarte en el sistema de reservación del CAA.
+                                                </p>
+                                                <p style="font-size: 16px; color: #555; line-height: 1.5; text-align: justify;">
+                                                  Tu código de verificación es:
+                                                </p>
+                                                <p style="font-size: 28px; font-weight: bold; color: #c1272d; letter-spacing: 4px; text-align: center;">
+                                                  ${CodigoVerificacion}
+                                                </p>
+                                                <p style="font-size: 14px; color: #777; line-height: 1.5; text-align: justify;">
+                                                  Este código es válido por 15 minutos. Ingresa el código en la página para activar tu cuenta.
+                                                </p>
+                                              </td>
+                                            </tr>
+                                          </table>
+                                        </div>
+             `;
+
+        try {
+            await sendEmail(CorreoEmail, emailSubject, emailText, emailHtml);
+        } catch (e) {
+            console.error('Error reenviando código:', e);
+            return res.status(500).json({ message: 'Error al enviar el correo de verificación' });
+        }
+
+        return res.json({ message: 'Código de verificación reenviado al correo' });
     }
 
 
-     delete = async (req, res) =>{
+
+    delete = async (req, res) =>{
         const {id} = req.params
         const deletedUser = await this.userModel.delete({id})
 
@@ -144,24 +320,37 @@ export class UserController {
         return res.status(403).json({ message: "No tienes permisos para actualizar este usuario" });
     }
 
-     login = async (req, res) =>{
-
+    login = async (req, res) =>{
         const user = await this.userModel.login({input: req.body})
 
-        if(!user) return res.status(409).json({message: 'Credenciales incorrectas'})
+        if(!user) {
+            return res.status(409).json({message: 'Credenciales incorrectas'})
+        }
+
 
         if(user.Estado === true){
             return res.status(403).json({message: 'Su cuenta se encuentra bloqueada, comuniquese con la administración'})
         }
-        else{
 
-            const token = jwt.sign({id: user.CedulaCarnet,role:user.RolNombre}, process.env.JWT_SECRET, {expiresIn: '1d'})
-            return res.json({token})
+        if (!user.EmailVerificado) {
+            return res.status(403).json({
+                message: 'Debes verificar tu correo electrónico antes de iniciar sesión',
+                requiresVerification: true,
+                cedulaCarnet: user.CedulaCarnet,
+                correoEmail: user.CorreoEmail
+            });
         }
 
+        const token = jwt.sign(
+            {id: user.CedulaCarnet, role:user.RolNombre},
+            process.env.JWT_SECRET,
+            {expiresIn: '1d'}
+        );
+        return res.json({token});
     }
 
-     sendAllEmail = async (req, res) =>{
+
+    sendAllEmail = async (req, res) =>{
         try {
 
             const { asunto, descripcion } = req.body;
@@ -186,16 +375,16 @@ export class UserController {
     <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); padding: 20px;">
       <tr>
         <td align="center" style="padding: 20px 0;">
-          <!-- Contenedor del Logo Centrador -->
+        
           <table border="0" cellpadding="0" cellspacing="0" style="text-align: center;">
             <tr>
-              <!-- Texto "TEC" -->
+            
               <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 36px; font-weight: bold;">
                 TEC
               </td>
-              <!-- Línea Roja Separadora -->
+              
               <td style="width: 5px; background-color: #c1272d;"></td>
-              <!-- Texto "Tecnológico de Costa Rica" -->
+              
               <td style="background-color: #ffffff; padding: 10px 20px; color: #000000; font-family: 'Georgia', serif; font-size: 18px;">
                 Centro Académico<br>de Alajuela
               </td>
@@ -229,20 +418,20 @@ export class UserController {
 
 
 
-                // Enviar el correo electrónico
+
                 await sendEmail(
-                    CorreoEmail,  // Correo del usuario actual en la iteración
-                    emailSubject,  // Asunto del correo
-                    emailText,     // Texto plano del correo
-                    emailHtml      // HTML del correo
+                    CorreoEmail,
+                    emailSubject,
+                    emailText,
+                    emailHtml
                 );
             }
 
-            // Responder con éxito
+
             res.json({ message: 'Correos enviados correctamente' });
 
         } catch (error) {
-            // Manejo de errores
+
             console.error(error);
             res.status(500).json({ message: 'Error al enviar los correos' });
         }
@@ -250,17 +439,16 @@ export class UserController {
 
      updatePassword = async (req, res) =>{
 
-        const { id } = req.params;
-        const updatedUser = await this.userModel.updatePassword({ id });
+        const {id} = req.params;
+        const {email} = req.body;
 
+        try{
 
-        if (typeof updatedUser === 'string') {
+            await this.userModel.updatePassword({ id , email });
+            return res.json({ message: 'Si los datos ingresados coinciden con un usuario, te enviaremos un correo con instrucciones para restablecer tu contraseña. Revisa también tu carpeta de spam.' });
 
-            return res.status(409).json({ message: updatedUser });
-        }
+        }catch(error){}
 
-
-        return res.json({ message: 'Usuario actualizado correctamente' });
     }
 
 

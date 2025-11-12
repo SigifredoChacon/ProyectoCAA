@@ -85,9 +85,30 @@ export class ApplicationController {
 
     getByUserId = async(req, res) =>{
         const { userId } = req.params;
-        const applications = await this.applicationModel.getByUserId({ userId });
-        if(applications.length > 0) return res.json(applications)
-        res.status(404).json({message: 'No hay solicitudes realizadas por este usuario'})
+        const requester = req.user;
+
+
+        if (!userId) {
+            return res.status(400).json({message: 'ID de usuario no proporcionado'});
+        }
+
+        try {
+
+
+            if (parseInt(requester.id) !== parseInt(userId) && !['Administrador', 'AdministradorReservaciones'].includes(requester.role)) {
+
+                return res.status(403).json({message: 'No tienes permiso para ver las solicitudes de este usuario'});
+            }
+
+            const applications = await this.applicationModel.getByUserId({userId});
+
+            res.status(200).json(applications)
+
+        } catch (error){
+
+            res.status(500).json({ message: 'Error interno del servidor' });
+
+        }
     }
 
      create = [
