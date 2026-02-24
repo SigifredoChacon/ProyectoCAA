@@ -1,12 +1,10 @@
-
 export const DBConfig = {
-    host: 'localhost',
-    user: 'root',
-    port: 3306,
-    password: 'root',
-    database: 'sistemacaa',
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  port: process.env.DB_PORT || 3306,
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "sistemacaa",
 };
-
 
 /*
 export const DBConfig = {
@@ -18,4 +16,3 @@ export const DBConfig = {
 };
 
 */
-

@@ -1,0 +1,74 @@
+backend/
+├── apis/
+│   └── apiApplication.http
+│   └── apiAsset.http
+│   └── apiCategory.http
+│   └── apiCubicle.http
+│   └── apiReservation.http
+│   └── apiResource.http
+│   └── apiRole.http
+│   └── apiRoom.http
+│   └── apiState.http
+│   └── apiUser.http
+│   └── apiValorations.http
+├── controllers/
+│   └── applicationController.js
+│   └── assetController.js
+│   └── categoryController.js
+│   └── cubicleController.js
+│   └── reservationController.js
+│   └── resourceController.js
+│   └── roleController.js
+│   └── roomController.js
+│   └── stateController.js
+│   └── userController.js
+│   └── valorationController.js
+├── middlewares/
+│   └── authMiddleware.js
+│   └── rateLimiters.js
+├── models/
+│   └── applicationModel.js
+│   └── assetModel.js
+│   └── categoryModel.js
+│   └── cubicleModel.js
+│   └── reservationModel.js
+│   └── resourceModel.js
+│   └── roleModel.js
+│   └── roomModel.js
+│   └── stateModel.js
+│   └── userModel.js
+│   └── valorationModel.js
+├── routes/
+│   └── applicationRouter.js
+│   └── assetRouter.js
+│   └── categoryRouter.js
+│   └── cubicleRouter.js
+│   └── reservationRouter.js
+│   └── resourceRouter.js
+│   └── roleRouter.js
+│   └── roomRouter.js
+│   └── stateRouter.js
+│   └── userRouter.js
+│   └── valorationRouter.js
+├── schemas/
+│   └── applicationSchema.js
+│   └── assetSchema.js
+│   └── categorySchema.js
+│   └── cubicleSchema.js
+│   └── reservationSchema.js
+│   └── resourceSchema.js
+│   └── roleSchema.js
+│   └── roomSchema.js
+│   └── stateSchema.js
+│   └── userSchema.js
+├── services/
+│   └── emailService.js
+│   └── notificationService.js
+│   └── userCleanupService.js
+│   └── validatePasswordService.js
+├── api.http
+├── app.js
+├── DBConfig.js
+├── package.json
+├── package-lock.json
+└── server-mysql.js
