@@ -1,1 +1,21 @@
-.env.produccion
+# Dependencias
+/node_modules
+
+# Ficheros compilados de TypeScript/JavaScript
+/dist
+/build
+
+# Ficheros de log
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variables de entorno
+# No deberían estar en el repositorio.
+.env
+.env.*
+!.env.example
+
+# Ficheros generados por el sistema operativo
+.DS_Store
